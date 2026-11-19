@@ -31,8 +31,11 @@ input[type=text]{width:100%;font-size:20px;padding:12px;border:2px solid var(--l
 .tile input{display:none}
 .retake{font-size:14px;color:var(--blue);margin-top:2px}
 .extra{margin-top:16px;background:var(--card);border:2px dashed var(--line);border-radius:14px;padding:12px}
-.extra .row{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
-.extra img{width:72px;height:72px;object-fit:cover;border-radius:8px}
+.extra .row{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:8px}
+.dt{position:relative;border:2px solid var(--ok);border-radius:12px;padding:4px;text-align:center;font-size:14px;font-weight:700}
+.dt img{width:100%;aspect-ratio:1;object-fit:contain;border-radius:8px;background:#fff;display:block}
+.dt .src{position:absolute;right:6px;top:6px;font-size:11px;background:var(--ok);color:#fff;border-radius:6px;padding:1px 5px}
+.dt.new .src{background:var(--blue)}
 .btn{display:block;width:100%;font-size:20px;font-weight:800;padding:16px;border:0;border-radius:12px;cursor:pointer}
 .btn.sub{background:var(--card);color:var(--blue);border:2px solid var(--blue);margin-top:10px;font-size:18px;padding:12px}
 .foot{position:fixed;left:0;right:0;bottom:0;background:var(--card);border-top:1px solid var(--line);padding:12px 16px calc(12px + env(safe-area-inset-bottom))}
@@ -50,6 +53,10 @@ input[type=text]{width:100%;font-size:20px;padding:12px;border:2px solid var(--l
 .cres{font-size:15px;color:var(--sub);margin-top:8px;line-height:1.6}
 .pinbox{margin-bottom:10px}
 .pinbox input{width:100%;font-size:20px;padding:12px;border:2px solid var(--warn);border-radius:10px;background:var(--card);color:var(--ink)}
+.cres a{color:var(--blue)}
+.tile .src{position:absolute;right:6px;bottom:30px;font-size:11px;background:var(--ok);color:#fff;border-radius:6px;padding:1px 5px}
+.dimg{width:100%;aspect-ratio:1;object-fit:contain;border-radius:8px;background:#fff;display:block;margin-bottom:4px}
+.tile .no,.tile .ck{z-index:1;background:var(--card);border-radius:8px;padding:0 5px}
 </style>
 </head>
 <body>
@@ -62,7 +69,7 @@ input[type=text]{width:100%;font-size:20px;padding:12px;border:2px solid var(--l
  <div class="bar"><i id="barI"></i></div>
  <div class="grid" id="grid"></div>
  <div class="extra">
-  <b>3. 디테일 사진 (여러 장 가능)</b>
+  <b>3. 디테일 사진 (<span id="detN">0</span>장)</b>
   <div class="row" id="exRow"></div>
   <button class="btn sub" id="exBtn">＋ 디테일 촬영</button>
   <input id="exIn" type="file" accept="image/*" capture="environment" hidden>
@@ -115,7 +122,7 @@ function chairSVG(yaw,el){
  return `<svg viewBox="${vb}">${F.map(f=>{const c=col(f.k,f.lit);return `<polygon points="${f.pts.map(p=>p[0].toFixed(1)+','+(-p[1]).toFixed(1)).join(' ')}" fill="${c}" stroke="${c}" stroke-width="2.6" stroke-linejoin="round"/>`;}).join('')}</svg>`;
 }
 const shots={},extras=[];
-const g=document.getElementById('grid');
+const g=document.getElementById('grid'),TILES=[];
 DIRS.forEach(([nm,yw,el],i)=>{
  const t=document.createElement('div');t.className='tile';
  t.innerHTML=`<span class="no">${i+1}</span><span class="ck">✓</span>${chairSVG(yw,el)}<div class="pic"></div><div class="nm">${nm}</div><div class="retake" hidden>다시 찍기</div><input type="file" accept="image/*" capture="environment">`;
@@ -125,12 +132,20 @@ DIRS.forEach(([nm,yw,el],i)=>{
   shots[nm]=f;const u=URL.createObjectURL(f);
   t.querySelector('.pic').innerHTML=`<img class="th" src="${u}" alt="">`;
   t.querySelector('.retake').hidden=false;t.classList.add('done');upd();});
- g.appendChild(t);
+ TILES.push(t);g.appendChild(t);
 });
 const exIn=document.getElementById('exIn');
 document.getElementById('exBtn').onclick=()=>exIn.click();
 exIn.onchange=()=>{const f=exIn.files[0];if(!f)return;extras.push(f);
- const im=document.createElement('img');im.src=URL.createObjectURL(f);document.getElementById('exRow').appendChild(im);exIn.value='';upd();};
+ exIn.value='';drawDet();upd();};
+let DRIVE_DETS=[];
+/* 디테일 칸: 드라이브에 있는 디테일 + 이 폰에서 새로 찍은 디테일을 개수만큼 칸으로 */
+function drawDet(){
+ document.getElementById('detN').textContent=DRIVE_DETS.length+extras.length;
+ const row=document.getElementById('exRow');
+ row.innerHTML=DRIVE_DETS.map(d=>`<div class="dt">${d.thumb?`<img src="${d.thumb}" alt="">`:''}<span class="src">드라이브</span>${d.name.replace(/\.[^.]+$/,'')}</div>`).join('')
+  +extras.map((f,i)=>`<div class="dt new"><img src="${URL.createObjectURL(f)}" alt=""><span class="src">새로 찍음</span>디테일${DRIVE_DETS.length+i+1}</div>`).join('');
+}
 document.getElementById('pname').addEventListener('input',upd);
 function upd(){
  const n=Object.keys(shots).length;
@@ -164,7 +179,7 @@ $('save').onclick=async()=>{
  if(!PIN){$('pinBox').hidden=false;$('pin').focus();$('msg').textContent='사용 비밀번호를 먼저 넣어 주세요.';return;}
  const jobs=[];
  DIRS.forEach(([nm],i)=>{if(shots[nm])jobs.push({f:shots[nm],name:fileName(i)});});
- extras.forEach((f,i)=>jobs.push({f,name:'디테일_'+(i+1)}));
+ extras.forEach((f,i)=>jobs.push({f,name:'디테일'+(DRIVE_DETS.length+i+1)}));
  busy=true;$('save').disabled=true;let done=0,fail=[],folderUrl='';
  for(const jb of jobs){
   $('msg').innerHTML=`⏳ 저장 ${done+1} / ${jobs.length} : ${jb.name}`;
@@ -189,11 +204,24 @@ async function check(){
   const r=await call(m?{action:'check',folderId:m[1]}:{action:'check',product});
   if(!r.found){out.innerHTML=`<div class="cres" style="color:var(--warn)">"${product}" 폴더가 아직 없습니다.</div>`;return;}
   const names=r.files.map(f=>f.name),used=new Set();
-  const hit=DIRS.map((_,i)=>{const pre=String(i+1).padStart(2,'0')+'_';const ms=names.filter(n=>n.startsWith(pre));ms.forEach(n=>used.add(n));return ms.length;});
+  /* 이름 비교: 확장자·앞 번호(01_)·뒤 중복번호(_2)·띄어쓰기·°·특수문자를 빼고 비교 */
+  const key=n=>String(n).normalize('NFC').replace(/\.[^.]+$/,'').replace(/^\d{1,3}[_\-. ]+/,'').replace(/_[2-9]$/,'').replace(/[^0-9A-Za-z가-힣]/g,'').toLowerCase();
+  const hit=DIRS.map(([nm])=>{const k=key(nm);const ms=names.filter(n=>key(n)===k);ms.forEach(n=>used.add(n));return ms.length;});
+  /* 확인된 사진을 위 방향 버튼에 그림으로 보여 주기 (그 폰에서 새로 찍은 사진이 있으면 그 사진 우선) */
+  const fileBy={};r.files.forEach(f=>fileBy[f.name]=f);
+  DIRS.forEach(([nm],i)=>{const t=TILES[i];if(shots[nm])return;
+   const k=key(nm),ms=names.filter(n=>key(n)===k),f=ms.map(n=>fileBy[n]).reverse().find(f=>f.thumb);
+   const pic=t.querySelector('.pic');pic.innerHTML='';const old=t.querySelector('.src');if(old)old.remove();
+   if(ms.length){t.classList.add('done');if(f)pic.innerHTML=`<img class="th" src="${f.thumb}" alt="">`;else t.classList.remove('done');
+    if(f)t.insertAdjacentHTML('beforeend','<span class="src">드라이브</span>');}
+   else t.classList.remove('done');});
+  const dets=names.filter(n=>!used.has(n)&&key(n).startsWith('디테일'));dets.forEach(n=>used.add(n));
+  DRIVE_DETS=dets.map(d=>fileBy[d]);drawDet();
   const miss=DIRS.filter((_,i)=>!hit[i]).map(d=>d[0]),other=names.filter(n=>!used.has(n));
   out.innerHTML=`<div class="cres">폴더: <a href="${r.folderUrl}" target="_blank" rel="noopener">${r.folderName}</a> · 파일 ${names.length}개</div>
   <div class="cg">${DIRS.map(([nm],i)=>`<div class="${hit[i]?'y':'n'}">${hit[i]?'✓':'✗'} ${nm}${hit[i]>1?` (${hit[i]})`:''}</div>`).join('')}</div>
-  <div class="cres">9방향 중 <b>${9-miss.length}장 있음</b>${miss.length?` · <b style="color:var(--warn)">빠진 사진: ${miss.join(', ')}</b>`:''}${other.length?`<br>그 밖의 파일 ${other.length}개: ${other.join(', ')}`:''}</div>`;
+  <div class="cres">9방향 중 <b>${9-miss.length}장 있음</b>${miss.length?` · <b style="color:var(--warn)">빠진 사진: ${miss.join(', ')}</b>`:''}</div>
+  <div class="cres" style="margin-top:10px"><b>디테일 ${dets.length}장</b></div>${dets.length?`<div class="cg">${dets.map(d=>`<div class="y">✓ ${d.replace(/\.[^.]+$/,'')}</div>`).join('')}</div>`:''}<div class="cres">${other.length?`그 밖의 파일 ${other.length}개: ${other.join(', ')}`:''}</div>`;
  }catch(e){out.innerHTML=`<div class="cres" style="color:var(--warn)">❌ ${e.message}</div>`;}
 }
 </script>
