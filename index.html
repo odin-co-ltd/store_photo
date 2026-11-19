@@ -59,6 +59,28 @@ input[type=text]{width:100%;font-size:20px;padding:12px;border:2px solid var(--l
 .tile .no,.tile .ck{z-index:1;background:var(--card);border-radius:8px;padding:0 5px}
 .nothumb{width:100%;aspect-ratio:1;border-radius:8px;box-sizing:border-box;padding:4px;display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--ok);font-weight:800;font-size:15px;border:2px dashed var(--ok)}
 .nothumb small{font-size:11px;color:var(--sub);font-weight:400;word-break:break-all}
+#viewer{position:fixed;inset:0;background:#000;z-index:100;display:flex;align-items:center;justify-content:center}
+#viewer[hidden]{display:none}
+#viewer img{width:100%;height:100%;object-fit:contain}
+#vCap{position:absolute;top:0;left:0;right:0;padding:12px 16px;color:#fff;font-size:18px;font-weight:700;background:linear-gradient(#000a,#0000);text-align:center}
+#vHint{position:absolute;bottom:calc(84px + env(safe-area-inset-bottom));left:0;right:0;text-align:center;color:#ccc;font-size:14px}
+#vRetake{position:absolute;bottom:calc(20px + env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);font-size:18px;font-weight:800;padding:12px 28px;border:0;border-radius:12px;background:#fff;color:#1565c0}
+.dt{cursor:pointer}
+.crumb{display:flex;flex-wrap:wrap;gap:4px;align-items:center;margin:10px 0 6px;font-size:15px}
+.crumb button{border:0;background:var(--bg);color:var(--blue);font-size:15px;font-weight:700;padding:6px 8px;border-radius:8px;cursor:pointer}
+.crumb button.cur{color:var(--ink);background:transparent}
+.crumb i{color:var(--sub);font-style:normal}
+.fgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:6px}
+.fd{border:0;background:var(--bg);border-radius:12px;padding:8px 4px;cursor:pointer;color:var(--ink);font-size:14px;font-weight:700;line-height:1.3;word-break:keep-all;overflow-wrap:anywhere}
+.fd svg{width:52px;height:44px;display:block;margin:0 auto 4px}
+.fd:active{transform:scale(.97)}
+.ffilter{margin-top:6px}
+.byurl{margin-top:14px}
+.byurl summary{color:var(--sub);font-size:15px;cursor:pointer}
+.up{margin-top:8px;border:2px solid var(--line);background:var(--card);color:var(--ink);font-size:16px;font-weight:700;padding:8px 14px;border-radius:10px;cursor:pointer}
+.where{font-size:15px;color:var(--sub);margin-top:6px;line-height:1.5}
+.where b{color:var(--blue)}
+.here{margin-top:8px;background:var(--blue);color:#fff}
 </style>
 </head>
 <body>
@@ -67,6 +89,7 @@ input[type=text]{width:100%;font-size:20px;padding:12px;border:2px solid var(--l
  <div id="pinBox" class="pinbox" hidden><label class="t" for="pin">사용 비밀번호</label><input id="pin" type="password" inputmode="numeric" placeholder="처음 한 번만 입력"></div>
  <label class="t" for="pname">1. 상품 이름</label>
  <input id="pname" type="text" placeholder="예: 코코체어 블랙">
+ <div class="where" id="where">저장 위치: 269 촬영 원본 무보정 › (상품 이름)</div>
  <div class="prog">2. 방향별 촬영 <span id="cnt">0 / 9</span></div>
  <div class="bar"><i id="barI"></i></div>
  <div class="grid" id="grid"></div>
@@ -78,12 +101,16 @@ input[type=text]{width:100%;font-size:20px;padding:12px;border:2px solid var(--l
  </div>
  <div class="chk">
   <b>5. 드라이브 저장 확인</b>
-  <div class="cres">드라이브 폴더 주소를 붙여 넣고 누르면, 9방향 사진이 다 있는지 파일 이름으로 확인합니다. 주소 칸을 비워 두면 맨 위 상품 이름 폴더를 확인합니다.</div>
-  <input id="fUrl" type="text" placeholder="https://drive.google.com/drive/folders/...">
-  <button class="btn" id="fBtn">폴더 확인하기</button>
+  <div class="cres">폴더를 눌러 안으로 들어가면, 그 폴더의 사진을 바로 확인해 위 2번·3번 칸에 보여 줍니다. 새로 찍은 사진은 여기서 열어 둔 폴더 안에 상품 이름 폴더를 만들어 저장합니다.</div>
+  <div id="fb"><button class="btn" id="fbStart">📁 촬영 폴더 열기</button></div>
   <div id="fOut"></div>
+  <details class="byurl"><summary>폴더 주소로 확인하기</summary>
+   <input id="fUrl" type="text" placeholder="https://drive.google.com/drive/folders/...">
+   <button class="btn" id="fBtn">폴더 확인하기</button>
+  </details>
  </div>
 </div>
+<div id="viewer" hidden><img id="vImg" alt=""><div id="vCap"></div><div id="vHint">화면을 한 번 더 누르면 돌아갑니다</div><button id="vRetake">📷 다시 찍기</button></div>
 <div class="foot"><div class="in">
  <button class="btn" id="save" disabled>4. 구글 드라이브에 한 번에 저장</button>
  <div class="msg" id="msg">상품 이름과 사진을 넣으면 버튼이 켜집니다.</div>
@@ -127,11 +154,11 @@ const shots={},extras=[];
 const g=document.getElementById('grid'),TILES=[];
 DIRS.forEach(([nm,yw,el],i)=>{
  const t=document.createElement('div');t.className='tile';
- t.innerHTML=`<span class="no">${i+1}</span><span class="ck">✓</span>${chairSVG(yw,el)}<div class="pic"></div><div class="nm">${nm}</div><div class="retake" hidden>다시 찍기</div><input type="file" accept="image/*" capture="environment">`;
+ t.innerHTML=`<span class="no">${i+1}</span><span class="ck">✓</span>${chairSVG(yw,el)}<div class="pic"></div><div class="nm">${nm}</div><div class="retake" hidden>눌러서 크게 보기</div><input type="file" accept="image/*" capture="environment">`;
  const inp=t.querySelector('input');
- t.addEventListener('click',e=>{if(e.target!==inp)inp.click();});
+ t.addEventListener('click',e=>{if(e.target===inp)return;if(t.dataset.big)openView(t.dataset.big,t.dataset.small,nm,()=>inp.click());else inp.click();});
  inp.addEventListener('change',()=>{const f=inp.files[0];if(!f)return;
-  shots[nm]=f;const u=URL.createObjectURL(f);
+  shots[nm]=f;const u=URL.createObjectURL(f);t.dataset.big=u;t.dataset.small=u;const o0=t.querySelector('.src');if(o0)o0.remove();
   t.querySelector('.pic').innerHTML=`<img class="th" src="${u}" alt="">`;
   t.querySelector('.retake').hidden=false;t.classList.add('done');upd();});
  TILES.push(t);g.appendChild(t);
@@ -145,24 +172,25 @@ let DRIVE_DETS=[];
 function drawDet(){
  document.getElementById('detN').textContent=DRIVE_DETS.length+extras.length;
  const row=document.getElementById('exRow');
- row.innerHTML=DRIVE_DETS.map(d=>`<div class="dt">${d.thumb?`<img src="${d.thumb}" alt="">`:''}<span class="src">드라이브</span>${d.name.replace(/\.[^.]+$/,'')}</div>`).join('')
-  +extras.map((f,i)=>`<div class="dt new"><img src="${URL.createObjectURL(f)}" alt=""><span class="src">새로 찍음</span>디테일${DRIVE_DETS.length+i+1}</div>`).join('');
+ row.innerHTML=DRIVE_DETS.map(d=>`<div class="dt" data-big="${d.id?`https://drive.google.com/thumbnail?id=${d.id}&sz=w2000`:(d.thumb||'')}" data-small="${d.thumb||''}" data-nm="${d.name.replace(/\.[^.]+$/,'')}">${d.thumb?`<img src="${d.thumb}" alt="">`:''}<span class="src">드라이브</span>${d.name.replace(/\.[^.]+$/,'')}</div>`).join('')
+  +extras.map((f,i)=>{const u=URL.createObjectURL(f);return `<div class="dt new" data-big="${u}" data-small="${u}" data-nm="디테일${DRIVE_DETS.length+i+1}"><img src="${u}" alt=""><span class="src">새로 찍음</span>디테일${DRIVE_DETS.length+i+1}</div>`;}).join('');
 }
 document.getElementById('pname').addEventListener('input',upd);
-function upd(){
+function upd(withMsg=true){
  const n=Object.keys(shots).length;
  document.getElementById('cnt').textContent=n+' / '+DIRS.length;
  document.getElementById('barI').style.width=(n/DIRS.length*100)+'%';
  const name=document.getElementById('pname').value.trim();
  const ok=name&&(n+extras.length)>0;
  document.getElementById('save').disabled=!ok;
- document.getElementById('msg').textContent=ok?`저장 예정: "${name}" 폴더에 ${n+extras.length}장`:'상품 이름과 사진을 넣으면 버튼이 켜집니다.';
+ if(withMsg)document.getElementById('msg').textContent=ok?`저장 예정: "${name}" 폴더에 ${n+extras.length}장`:'상품 이름과 사진을 넣으면 버튼이 켜집니다.';
 }
 /* ───── 드라이브 연결 ───── */
 const API='https://script.google.com/macros/s/AKfycbw0B7IE5YgaeIwfQCaujgTesCTomZYTL1pzyICR5nSepAjvcJuTVlpVdvn6XNZfT_3B/exec';
 const $=id=>document.getElementById(id);
 let PIN='';try{PIN=localStorage.getItem('camPin')||'';}catch(e){}
 if(!PIN)$('pinBox').hidden=false;
+window.addEventListener('load',()=>{showWhere();if(PIN)check({root:true});});
 $('pin').addEventListener('input',()=>{PIN=$('pin').value.trim();try{localStorage.setItem('camPin',PIN);}catch(e){}});
 async function call(body){
  const r=await fetch(API,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({...body,pin:PIN}),redirect:'follow'});
@@ -175,36 +203,76 @@ const b64=f=>new Promise((ok,no)=>{const r=new FileReader();r.onload=()=>ok(Stri
 const extOf=f=>((f.name||'').match(/\.(jpe?g|png|heic|heif|webp)$/i)||[,'jpg'])[1].toLowerCase().replace('jpeg','jpg');
 const fileName=i=>String(i+1).padStart(2,'0')+'_'+DIRS[i][0].replace('°','');
 let busy=false;
+/* 저장 위치: 아래 5번에서 열어 둔 폴더(CUR). 상품 이름이 그 폴더 이름과 같으면 그 폴더에 바로 저장, 다르면 그 안에 상품 폴더를 만들어 저장 */
+let CUR=[{id:'',name:'269 촬영 원본 무보정'}],AUTO_NAME='';
+function curFolder(){return CUR[CUR.length-1];}
+function saveTarget(){const n=$('pname').value.trim(),c=curFolder();return (c.id&&CUR.length>1&&n===c.name)?{into:c.id}:{parent:c.id};}
+function showWhere(){const n=$('pname').value.trim(),t=saveTarget(),names=CUR.map(p=>p.name);
+ $('where').innerHTML='저장 위치: '+names.map(esc).join(' › ')+(t.into?' <b>(이 폴더에 이어서 저장)</b>':' › <b>'+(n?esc(n):'(상품 이름)')+'</b>'+(n?' <small>(없으면 새로 만듦)</small>':''));}
+$('pname').addEventListener('input',()=>{AUTO_NAME='';showWhere();});
 $('save').onclick=async()=>{
  if(busy)return;
  const product=$('pname').value.trim();
  if(!PIN){$('pinBox').hidden=false;$('pin').focus();$('msg').textContent='사용 비밀번호를 먼저 넣어 주세요.';return;}
  const jobs=[];
- DIRS.forEach(([nm],i)=>{if(shots[nm])jobs.push({f:shots[nm],name:fileName(i)});});
- extras.forEach((f,i)=>jobs.push({f,name:'디테일'+(DRIVE_DETS.length+i+1)}));
- busy=true;$('save').disabled=true;let done=0,fail=[],folderUrl='';
+ DIRS.forEach(([nm],i)=>{if(shots[nm])jobs.push({f:shots[nm],name:fileName(i),nm});});
+ extras.forEach((f,i)=>jobs.push({f,name:'디테일'+(DRIVE_DETS.length+i+1),ex:true}));
+ const tg=saveTarget(),okEx=new Set();
+ busy=true;$('save').disabled=true;let done=0,fail=[],folderUrl='',savedId='';
  for(const jb of jobs){
   $('msg').innerHTML=`⏳ 저장 ${done+1} / ${jobs.length} : ${jb.name}`;
-  try{const r=await call({action:'upload',product,name:jb.name+'.'+extOf(jb.f),mime:jb.f.type||'image/jpeg',data:await b64(jb.f)});folderUrl=r.folderUrl;done++;}
+  try{const r=await call({action:'upload',product,intoFolderId:tg.into||'',parentId:tg.parent||'',name:jb.name+'.'+extOf(jb.f),mime:jb.f.type||'image/jpeg',data:await b64(jb.f)});folderUrl=r.folderUrl;savedId=r.folderId;done++;if(jb.nm)delete shots[jb.nm];if(jb.ex)okEx.add(jb.f);}
   catch(e){fail.push(jb.name+' ('+e.message+')');if(/비밀번호/.test(e.message))break;}
  }
- busy=false;upd();
+ /* 저장된 사진은 이 폰 목록에서 빼서 두 번 올라가지 않게 함 (드라이브 사진으로 다시 보임) */
+ for(let k=extras.length-1;k>=0;k--)if(okEx.has(extras[k]))extras.splice(k,1);
+ busy=false;upd(false);drawDet();
  $('msg').innerHTML=fail.length?`❌ ${done}장 저장, ${fail.length}장 실패<br>${fail.join('<br>')}`:`✅ ${done}장 모두 저장했습니다.`;
  if(folderUrl){$('fUrl').value=folderUrl;}
- if(done)check();
+ if(done&&savedId)check({folderId:savedId});
 };
 /* ───── 저장 확인 ───── */
 $('fBtn').onclick=()=>check();
-async function check(){
- const out=$('fOut'),v=$('fUrl').value.trim(),product=$('pname').value.trim();
- const m=v.match(/folders\/([\w-]{10,})/)||v.match(/[?&]id=([\w-]{10,})/)||v.match(/^([\w-]{20,})$/);
- if(v&&!m){out.innerHTML='<div class="cres" style="color:var(--warn)">폴더 주소가 아닙니다. 드라이브에서 폴더를 열고 주소창 주소를 그대로 붙여 넣어 주세요.</div>';return;}
- if(!v&&!product){out.innerHTML='<div class="cres" style="color:var(--warn)">폴더 주소를 넣거나, 맨 위에 상품 이름을 적어 주세요.</div>';return;}
+$('fbStart').onclick=()=>check({root:true});
+const FOLDER_SVG='<svg viewBox="0 0 52 44"><path d="M4 8a4 4 0 0 1 4-4h12l5 5h19a4 4 0 0 1 4 4v23a4 4 0 0 1-4 4H8a4 4 0 0 1-4-4z" fill="#f4b740"/><path d="M4 15h44v21a4 4 0 0 1-4 4H8a4 4 0 0 1-4-4z" fill="#ffcf5c"/></svg>';
+const esc=t=>String(t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+async function check(opt){
+ const out=$('fOut'),product=$('pname').value.trim();
+ let req;
+ if(opt&&opt.root)req={action:'check',root:true};
+ else if(opt&&opt.folderId)req={action:'check',folderId:opt.folderId};
+ else{
+  const v=$('fUrl').value.trim();
+  const m=v.match(/folders\/([\w-]{10,})/)||v.match(/[?&]id=([\w-]{10,})/)||v.match(/^([\w-]{20,})$/);
+  if(v&&!m){out.innerHTML='<div class="cres" style="color:var(--warn)">폴더 주소가 아닙니다. 드라이브에서 폴더를 열고 주소창 주소를 그대로 붙여 넣어 주세요.</div>';return;}
+  if(!v&&!product){out.innerHTML='<div class="cres" style="color:var(--warn)">폴더 주소를 넣거나, 맨 위에 상품 이름을 적어 주세요.</div>';return;}
+  req=m?{action:'check',folderId:m[1]}:{action:'check',product};
+ }
  if(!PIN){$('pinBox').hidden=false;out.innerHTML='<div class="cres" style="color:var(--warn)">사용 비밀번호를 먼저 넣어 주세요.</div>';return;}
- out.innerHTML='<div class="cres">⏳ 드라이브를 확인하고 있습니다…</div>';
+ $('fb').innerHTML='';out.innerHTML='<div class="cres">⏳ 드라이브를 확인하고 있습니다…</div>';
  try{
-  const r=await call(m?{action:'check',folderId:m[1]}:{action:'check',product});
-  if(!r.found){out.innerHTML=`<div class="cres" style="color:var(--warn)">"${product}" 폴더가 아직 없습니다.</div>`;return;}
+  const r=await call(req);
+  if(!r.found){out.innerHTML=`<div class="cres" style="color:var(--warn)">"${esc(product)}" 폴더가 아직 없습니다.</div>`;$('fb').innerHTML='<button class="btn" id="fbStart2">📁 촬영 폴더 열기</button>';$('fbStart2').onclick=()=>check({root:true});return;}
+  /* 폴더 길(경로)과 안쪽 폴더 아이콘 */
+  const path=r.path||[{id:r.folderId,name:r.folderName}];
+  CUR=path.map((p,k)=>({id:k===0?'':p.id,name:p.name}));if(CUR.length===1&&r.folderId)CUR[0].id='';
+  /* 사진이 들어 있는 폴더 = 상품 폴더 → 상품 이름 칸에 폴더 이름을 넣어 이어서 촬영 */
+  const isProduct=(r.files||[]).some(f=>/\.(jpe?g|png|heic|heif|webp)$/i.test(f.name));
+  const pn=$('pname').value.trim();
+  if(isProduct&&path.length>1&&(!pn||pn===AUTO_NAME)){$('pname').value=path[path.length-1].name;AUTO_NAME=$('pname').value;}
+  else if(!isProduct&&pn&&pn===AUTO_NAME){$('pname').value='';AUTO_NAME='';}
+  showWhere();upd(false);
+  const subs=r.folders||[];
+  $('fb').innerHTML=`<div class="crumb">${path.map((p,k)=>k<path.length-1?`<button data-fid="${p.id}">📁 ${esc(p.name)}</button><i>›</i>`:`<button class="cur" disabled>📂 ${esc(p.name)}</button>`).join('')}</div>
+   ${path.length>1?`<button class="up" data-fid="${path[path.length-2].id}">⬅ 위 폴더로</button>`:''}
+   ${subs.length>9?`<input class="ffilter" id="ffilter" type="text" placeholder="폴더 이름 찾기 (${subs.length}개)">`:''}
+   ${subs.length?`<div class="fgrid" id="fgrid">${subs.map(f=>`<button class="fd" data-fid="${f.id}" data-nm="${esc(f.name)}">${FOLDER_SVG}${esc(f.name)}</button>`).join('')}</div>`:''}`;
+  $('fb').querySelectorAll('[data-fid]').forEach(el=>el.onclick=()=>check({folderId:el.dataset.fid}));
+  const ff=$('ffilter');if(ff)ff.oninput=()=>{const q=ff.value.trim().toLowerCase();$('fgrid').querySelectorAll('.fd').forEach(el=>el.hidden=q&&!el.dataset.nm.toLowerCase().includes(q));};
+  if(!r.files.length){
+   out.innerHTML=`<div class="cres">${subs.length?'이 폴더에는 사진이 없습니다. 위 폴더를 눌러 들어가 주세요.':'빈 폴더입니다.'}</div>`;
+   return;
+  }
   const names=r.files.map(f=>f.name),used=new Set();
   /* 이름 비교: 확장자·앞 번호(01_)·뒤 중복번호(_2)·띄어쓰기·°·특수문자를 빼고 비교 */
   const key=n=>String(n).normalize('NFC').replace(/\.[^.]+$/,'').replace(/^\d{1,3}[_\-. ]+/,'').replace(/_[2-9]$/,'').replace(/[^0-9A-Za-z가-힣]/g,'').toLowerCase();
@@ -216,7 +284,8 @@ async function check(){
    const k=key(nm),ms=names.filter(n=>key(n)===k).map(n=>fileBy[n]);
    const f=ms.slice().reverse().find(f=>thumbOf(f))||ms[ms.length-1];
    const pic=t.querySelector('.pic');pic.innerHTML='';const old=t.querySelector('.src');if(old)old.remove();
-   if(!f){t.classList.remove('done');return;}
+   if(!f){t.classList.remove('done');delete t.dataset.big;t.querySelector('.retake').hidden=true;return;}
+   t.dataset.big=f.id?`https://drive.google.com/thumbnail?id=${f.id}&sz=w2000`:(f.thumb||'');t.dataset.small=f.thumb||'';t.querySelector('.retake').hidden=!t.dataset.big;
    t.classList.add('done');
    const u=thumbOf(f);
    pic.innerHTML=u?`<img class="th" src="${u}" alt="" onerror="this.outerHTML='<div class=&quot;th nothumb&quot;>사진 있음<br><small>${f.name}</small></div>'">`:`<div class="th nothumb">사진 있음<br><small>${f.name}</small></div>`;
@@ -225,13 +294,29 @@ async function check(){
   const dets=names.filter(n=>!used.has(n)&&key(n).startsWith('디테일'));dets.forEach(n=>used.add(n));
   DRIVE_DETS=dets.map(d=>{const f=fileBy[d];return {...f,thumb:thumbOf(f)};});drawDet();
   const miss=DIRS.filter((_,i)=>!hit[i]).map(d=>d[0]),other=names.filter(n=>!used.has(n));
-  out.innerHTML=`<div class="cres">폴더: <a href="${r.folderUrl}" target="_blank" rel="noopener">${r.folderName}</a> · 파일 ${names.length}개</div>
+  let res;
+  res=`<div class="cres">폴더: <a href="${r.folderUrl}" target="_blank" rel="noopener">${r.folderName}</a> · 파일 ${names.length}개</div>
   <div class="cg">${DIRS.map(([nm],i)=>`<div class="${hit[i]?'y':'n'}">${hit[i]?'✓':'✗'} ${nm}${hit[i]>1?` (${hit[i]})`:''}</div>`).join('')}</div>
   ${r.version?'':'<div class="cres" style="color:var(--warn)">⚠ 앱스크립트가 예전 버전이라 사진을 받아오지 못했습니다. 새 코드를 붙여 넣고 "새 버전"으로 배포해 주세요.</div>'}
   <div class="cres">9방향 중 <b>${9-miss.length}장 있음</b>${miss.length?` · <b style="color:var(--warn)">빠진 사진: ${miss.join(', ')}</b>`:''}</div>
   <div class="cres" style="margin-top:10px"><b>디테일 ${dets.length}장</b></div>${dets.length?`<div class="cg">${dets.map(d=>`<div class="y">✓ ${d.replace(/\.[^.]+$/,'')}</div>`).join('')}</div>`:''}<div class="cres">${other.length?`그 밖의 파일 ${other.length}개: ${other.join(', ')}`:''}</div>`;
+  out.innerHTML=res;
+  $('fUrl').value=r.folderUrl||'';
+
  }catch(e){out.innerHTML=`<div class="cres" style="color:var(--warn)">❌ ${e.message}</div>`;}
 }
+/* ───── 크게 보기 ───── */
+let RETAKE=null;
+function openView(big,small,cap,retake){
+ const v=$('viewer'),im=$('vImg');im.onerror=()=>{if(small&&im.src!==small)im.src=small;};im.src=big;
+ $('vCap').textContent=cap;RETAKE=retake||null;$('vRetake').hidden=!retake;v.hidden=false;
+ try{history.pushState({v:1},'');}catch(e){}
+}
+function closeView(fromPop){if($('viewer').hidden)return;$('viewer').hidden=true;$('vImg').src='';if(!fromPop){try{history.back();}catch(e){}}}
+$('viewer').addEventListener('click',e=>{if(e.target.id==='vRetake')return;closeView();});
+$('vRetake').addEventListener('click',e=>{e.stopPropagation();const r=RETAKE;closeView();if(r)setTimeout(r,50);});
+window.addEventListener('popstate',()=>closeView(true));
+$('exRow').addEventListener('click',e=>{const d=e.target.closest('.dt');if(d&&d.dataset.big)openView(d.dataset.big,d.dataset.small,d.dataset.nm);});
 </script>
 </body>
 </html>
