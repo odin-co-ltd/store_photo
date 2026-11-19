@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>상품 촬영 시안</title>
+<style>
+:root{--bg:#f4f5f7;--card:#fff;--ink:#1d1f23;--sub:#5c6370;--line:#d9dde3;--blue:#1565c0;--ok:#2e7d32;--warn:#c62828}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#15171a;--card:#202329;--ink:#eef0f3;--sub:#a4abb6;--line:#343942;--blue:#64a6ff;--ok:#6fcf74;--warn:#ff7b7b}}
+:root[data-theme="dark"]{--bg:#15171a;--card:#202329;--ink:#eef0f3;--sub:#a4abb6;--line:#343942;--blue:#64a6ff;--ok:#6fcf74;--warn:#ff7b7b}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,"Noto Sans KR","Malgun Gothic",sans-serif;font-size:18px}
+.wrap{max-width:520px;margin:0 auto;padding:12px 16px 120px}
+h1{font-size:22px;margin:4px 0 12px}
+.badge{display:inline-block;font-size:13px;background:#ffe9a8;color:#5a4300;border-radius:6px;padding:2px 8px;margin-left:6px;vertical-align:middle}
+label.t{display:block;font-weight:700;margin:6px 0}
+input[type=text]{width:100%;font-size:20px;padding:12px;border:2px solid var(--line);border-radius:10px;background:var(--card);color:var(--ink)}
+.prog{margin:14px 0 8px;font-weight:700}
+.bar{height:12px;background:var(--line);border-radius:6px;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--ok);width:0;transition:width .3s}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px}
+.tile{position:relative;background:var(--card);border:2px solid var(--line);border-radius:16px;padding:8px 4px 8px;text-align:center;cursor:pointer}
+.tile.done{border-color:var(--ok)}
+.tile .no{position:absolute;left:8px;top:4px;font-size:14px;font-weight:800;color:var(--sub)}
+.tile .ck{position:absolute;right:8px;top:4px;color:var(--ok);font-size:22px;font-weight:800;display:none}
+.tile.done .ck{display:block}
+.tile svg{width:100%;max-width:96px;aspect-ratio:1;display:block;margin:2px auto 0}
+.tile .nm{font-size:16px;font-weight:700;margin-top:2px;white-space:nowrap}
+.tile img.th{width:100%;aspect-ratio:1;height:auto;object-fit:contain;border-radius:8px;background:#fff}
+.tile.done svg{display:none}
+.tile input{display:none}
+.retake{font-size:14px;color:var(--blue);margin-top:2px}
+.extra{margin-top:16px;background:var(--card);border:2px dashed var(--line);border-radius:14px;padding:12px}
+.extra .row{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+.extra img{width:72px;height:72px;object-fit:cover;border-radius:8px}
+.btn{display:block;width:100%;font-size:20px;font-weight:800;padding:16px;border:0;border-radius:12px;cursor:pointer}
+.btn.sub{background:var(--card);color:var(--blue);border:2px solid var(--blue);margin-top:10px;font-size:18px;padding:12px}
+.foot{position:fixed;left:0;right:0;bottom:0;background:var(--card);border-top:1px solid var(--line);padding:12px 16px calc(12px + env(safe-area-inset-bottom))}
+.foot .in{max-width:520px;margin:0 auto}
+.foot .btn{background:var(--blue);color:#fff}
+.foot .btn:disabled{background:var(--line);color:var(--sub)}
+.msg{font-size:15px;color:var(--sub);margin-top:6px;text-align:center}
+.chk{margin-top:16px;background:var(--card);border:2px solid var(--line);border-radius:14px;padding:12px}
+.chk input{width:100%;font-size:16px;padding:10px;border:2px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink);margin-top:6px}
+.chk .btn{background:var(--ok);color:#fff;margin-top:8px;font-size:18px;padding:12px}
+.cg{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:10px}
+.cg div{border-radius:10px;padding:8px 2px;text-align:center;font-size:15px;font-weight:700;border:2px solid}
+.cg .y{border-color:var(--ok);color:var(--ok)}
+.cg .n{border-color:var(--warn);color:var(--warn);border-style:dashed}
+.cres{font-size:15px;color:var(--sub);margin-top:8px;line-height:1.6}
+</style>
+</head>
+<body>
+<div class="wrap">
+ <h1>상품 촬영 <span class="badge">시안 · 저장 안 됨</span></h1>
+ <label class="t" for="pname">1. 상품 이름</label>
+ <input id="pname" type="text" placeholder="예: 코코체어 블랙">
+ <div class="prog">2. 방향별 촬영 <span id="cnt">0 / 9</span></div>
+ <div class="bar"><i id="barI"></i></div>
+ <div class="grid" id="grid"></div>
+ <div class="extra">
+  <b>3. 디테일 사진 (여러 장 가능)</b>
+  <div class="row" id="exRow"></div>
+  <button class="btn sub" id="exBtn">＋ 디테일 촬영</button>
+  <input id="exIn" type="file" accept="image/*" capture="environment" hidden>
+ </div>
+ <div class="chk">
+  <b>5. 드라이브 저장 확인</b>
+  <div class="cres">드라이브 폴더 주소를 붙여 넣으면, 9방향 사진이 다 들어 있는지 파일 이름으로 확인합니다.</div>
+  <input id="fUrl" type="text" placeholder="https://drive.google.com/drive/folders/...">
+  <button class="btn" id="fBtn">폴더 확인하기</button>
+  <div id="fOut"></div>
+ </div>
+</div>
+<div class="foot"><div class="in">
+ <button class="btn" id="save" disabled>4. 구글 드라이브에 한 번에 저장</button>
+ <div class="msg" id="msg">상품 이름과 사진을 넣으면 버튼이 켜집니다.</div>
+</div></div>
+<script>
+/* 촬영 순서와 의자 그림 각도: [이름, 좌우 회전(도), 위에서 내려다보는 각도(도)] */
+const DIRS=[
+ ['정면',0,8],['정면 15°',15,8],['정면 45°',45,8],['옆면',90,5],
+ ['윗면',0,72],['윗면 15°',30,50],['뒷면 15°',165,8],['뒷면 45°',135,8],['뒷면',180,8]
+];
+/* 간단한 의자 입체 그림 (상자 여러 개를 돌려서 그림) */
+const BOX=[ // [x1,x2,y1,y2,z1,z2,색]
+ [-20,-16,0,42,15,19,'w'],[16,20,0,42,15,19,'w'],          // 앞다리
+ [-20,-16,0,86,-20,-16,'w'],[16,20,0,86,-20,-16,'w'],       // 뒷다리(등받이 기둥)
+ [-20,20,40,44,-20,19,'w'],                                  // 좌판 틀
+ [-17,17,44,48,-15,18,'c'],                                  // 쿠션
+ [-16,16,68,83,-20,-17,'w'],                                 // 등판
+ [-16,16,55,58,-19,-17,'w'],                                 // 중간 살
+ [-16,16,14,17,-19,-17,'w'],[-16,16,14,17,15,17,'w']         // 아래 가로대
+];
+function chairSVG(yaw,el){
+ const cy=Math.cos(yaw*Math.PI/180),sy=Math.sin(yaw*Math.PI/180),ce=Math.cos(el*Math.PI/180),se=Math.sin(el*Math.PI/180);
+ const P=([x,y,z])=>{const x1=x*cy-z*sy,z1=x*sy+z*cy;y-=43;return [x1,y*ce-z1*se,y*se+z1*ce];};
+ const F=[];
+ BOX.forEach(([a,b,c,d,e,f,k])=>{
+  const v=[[a,c,e],[b,c,e],[b,d,e],[a,d,e],[a,c,f],[b,c,f],[b,d,f],[a,d,f]].map(P);
+  [[4,5,6,7,[0,0,1]],[1,0,3,2,[0,0,-1]],[0,4,7,3,[-1,0,0]],[5,1,2,6,[1,0,0]],[3,7,6,2,[0,1,0]],[0,1,5,4,[0,-1,0]]].forEach(q=>{
+   const n=P(q[4]),o=P([0,0,0]),nz=n[2]-o[2];if(nz<=0.01)return;
+   const lit=0.55+0.45*Math.max(0,(n[1]-o[1])*0.6+nz*0.8);
+   F.push({pts:q.slice(0,4).map(t=>v[t]),z:q.slice(0,4).reduce((s,t)=>s+v[t][2],0)/4,lit,k});
+  });
+ });
+ F.sort((p,q)=>p.z-q.z);
+ const all=F.flatMap(f=>f.pts),xs=all.map(p=>p[0]),ys=all.map(p=>-p[1]);
+ const x0=Math.min(...xs),x1=Math.max(...xs),y0=Math.min(...ys),y1=Math.max(...ys),sz=Math.max(x1-x0,y1-y0)+12;
+ const vb=`${((x0+x1)/2-sz/2).toFixed(1)} ${((y0+y1)/2-sz/2).toFixed(1)} ${sz.toFixed(1)} ${sz.toFixed(1)}`;
+ const col=(k,l)=>{const t=Math.min(1,0.78+0.22*l);return k==='c'?`rgb(${Math.round(92*t)},${Math.round(98*t)},${Math.round(110*t)})`:`rgb(${Math.round(222*t)},${Math.round(160*t)},${Math.round(112*t)})`;};
+ return `<svg viewBox="${vb}">${F.map(f=>{const c=col(f.k,f.lit);return `<polygon points="${f.pts.map(p=>p[0].toFixed(1)+','+(-p[1]).toFixed(1)).join(' ')}" fill="${c}" stroke="${c}" stroke-width="2.6" stroke-linejoin="round"/>`;}).join('')}</svg>`;
+}
+const shots={},extras=[];
+const g=document.getElementById('grid');
+DIRS.forEach(([nm,yw,el],i)=>{
+ const t=document.createElement('div');t.className='tile';
+ t.innerHTML=`<span class="no">${i+1}</span><span class="ck">✓</span>${chairSVG(yw,el)}<div class="pic"></div><div class="nm">${nm}</div><div class="retake" hidden>다시 찍기</div><input type="file" accept="image/*" capture="environment">`;
+ const inp=t.querySelector('input');
+ t.addEventListener('click',e=>{if(e.target!==inp)inp.click();});
+ inp.addEventListener('change',()=>{const f=inp.files[0];if(!f)return;
+  shots[nm]=f;const u=URL.createObjectURL(f);
+  t.querySelector('.pic').innerHTML=`<img class="th" src="${u}" alt="">`;
+  t.querySelector('.retake').hidden=false;t.classList.add('done');upd();});
+ g.appendChild(t);
+});
+const exIn=document.getElementById('exIn');
+document.getElementById('exBtn').onclick=()=>exIn.click();
+exIn.onchange=()=>{const f=exIn.files[0];if(!f)return;extras.push(f);
+ const im=document.createElement('img');im.src=URL.createObjectURL(f);document.getElementById('exRow').appendChild(im);exIn.value='';upd();};
+document.getElementById('pname').addEventListener('input',upd);
+function upd(){
+ const n=Object.keys(shots).length;
+ document.getElementById('cnt').textContent=n+' / '+DIRS.length;
+ document.getElementById('barI').style.width=(n/DIRS.length*100)+'%';
+ const name=document.getElementById('pname').value.trim();
+ const ok=name&&(n+extras.length)>0;
+ document.getElementById('save').disabled=!ok;
+ document.getElementById('msg').textContent=ok?`저장 예정: "${name}" 폴더에 ${n+extras.length}장`:'상품 이름과 사진을 넣으면 버튼이 켜집니다.';
+}
+document.getElementById('save').onclick=()=>{
+ const name=document.getElementById('pname').value.trim();
+ const files=DIRS.filter(([nm])=>shots[nm]).map(([nm],i)=>`${String(DIRS.findIndex(d=>d[0]===nm)+1).padStart(2,'0')}_${nm.replace('°','')}.jpg`).concat(extras.map((_,i)=>`디테일_${i+1}.jpg`));
+ document.getElementById('msg').innerHTML='시안이라 실제 저장은 하지 않습니다.<br>폴더: '+name+'<br>'+files.join('<br>');
+};
+/* 저장 확인 (시안: 실제 드라이브 대신 예시 결과) */
+document.getElementById('fBtn').onclick=()=>{
+ const v=document.getElementById('fUrl').value.trim(),m=v.match(/folders\/([\w-]{10,})/)||v.match(/[?&]id=([\w-]{10,})/)||v.match(/^([\w-]{20,})$/);
+ const out=document.getElementById('fOut');
+ if(!m){out.innerHTML='<div class="cres" style="color:var(--warn)">폴더 주소가 아닙니다. 드라이브에서 폴더를 열고 주소창 주소를 그대로 붙여 넣어 주세요.</div>';return;}
+ const names=DIRS.map(([nm],i)=>String(i+1).padStart(2,'0')+'_'+nm.replace('°','')+'.jpg');
+ const have=new Set(names.filter((_,i)=>i!==4&&i!==7)); /* 예시: 5번·8번이 빠진 경우 */
+ const extra=['디테일_1.jpg','디테일_2.jpg'];
+ const miss=DIRS.filter((_,i)=>!have.has(names[i])).map(d=>d[0]);
+ out.innerHTML=`<div class="cres">폴더 번호: ${m[1].slice(0,12)}… · <b style="color:var(--warn)">시안이라 예시 결과입니다</b></div>
+ <div class="cg">${DIRS.map(([nm],i)=>`<div class="${have.has(names[i])?'y':'n'}">${have.has(names[i])?'✓':'✗'} ${nm}</div>`).join('')}</div>
+ <div class="cres">9방향 중 <b>${9-miss.length}장 있음</b>${miss.length?` · <b style="color:var(--warn)">빠진 사진: ${miss.join(', ')}</b>`:''}<br>그 밖의 파일 ${extra.length}개: ${extra.join(', ')}</div>`;
+};
+</script>
+</body>
+</html>
