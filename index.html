@@ -81,6 +81,16 @@ input[type=text]{width:100%;font-size:20px;padding:12px;border:2px solid var(--l
 .where{font-size:15px;color:var(--sub);margin-top:6px;line-height:1.5}
 .where b{color:var(--blue)}
 .here{margin-top:8px;background:var(--blue);color:#fff}
+.tree{margin-top:10px;border:1px solid var(--line);border-radius:10px;padding:4px 0;max-height:60vh;overflow:auto}
+.tr{display:flex;align-items:center;gap:6px;padding-top:9px;padding-bottom:9px;padding-right:8px;cursor:pointer;font-size:17px;user-select:none}
+.tr.sel{background:#e3eefc}
+:root[data-theme="dark"] .tr.sel{background:#1f3350}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .tr.sel{background:#1f3350}}
+.tr .ar{display:inline-block;width:22px;text-align:center;font-size:20px;color:var(--sub);transition:transform .15s;flex:none}
+.tr .ar.o{transform:rotate(90deg)}
+.tr .fi{width:24px;height:20px;flex:none}
+.tr .tn{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tr .ld{margin-left:auto;font-size:14px}
 </style>
 </head>
 <body>
@@ -101,8 +111,8 @@ input[type=text]{width:100%;font-size:20px;padding:12px;border:2px solid var(--l
  </div>
  <div class="chk">
   <b>5. 드라이브 저장 확인</b>
-  <div class="cres">폴더를 눌러 안으로 들어가면, 그 폴더의 사진을 바로 확인해 위 2번·3번 칸에 보여 줍니다. 새로 찍은 사진은 여기서 열어 둔 폴더 안에 상품 이름 폴더를 만들어 저장합니다.</div>
-  <div id="fb"><button class="btn" id="fbStart">📁 촬영 폴더 열기</button></div>
+  <div class="cres">폴더 이름을 누르면 안쪽 폴더가 펼쳐지고, 그 폴더의 사진을 위 2번·3번 칸에 보여 줍니다. 새로 찍은 사진은 파랗게 고른 폴더 안에 상품 이름 폴더를 만들어 저장합니다.</div>
+  <div id="fb" class="tree"></div>
   <div id="fOut"></div>
   <details class="byurl"><summary>폴더 주소로 확인하기</summary>
    <input id="fUrl" type="text" placeholder="https://drive.google.com/drive/folders/...">
@@ -190,7 +200,7 @@ const API='https://script.google.com/macros/s/AKfycbw0B7IE5YgaeIwfQCaujgTesCTomZ
 const $=id=>document.getElementById(id);
 let PIN='';try{PIN=localStorage.getItem('camPin')||'';}catch(e){}
 if(!PIN)$('pinBox').hidden=false;
-window.addEventListener('load',()=>{showWhere();if(PIN)check({root:true});});
+window.addEventListener('load',()=>{showWhere();renderTree();if(PIN)check({folderId:ROOT_ID});});
 $('pin').addEventListener('input',()=>{PIN=$('pin').value.trim();try{localStorage.setItem('camPin',PIN);}catch(e){}});
 async function call(body){
  const r=await fetch(API,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({...body,pin:PIN}),redirect:'follow'});
@@ -233,7 +243,33 @@ $('save').onclick=async()=>{
 };
 /* ───── 저장 확인 ───── */
 $('fBtn').onclick=()=>check();
-$('fbStart').onclick=()=>check({root:true});
+/* ───── 폴더 나무(트리) 보기 ───── */
+const ROOT_ID='1LVTdCj3k7PzJzHIDgmgN9fy4Zy9lMCnJ';
+const NODES={};
+function node(id,name,parent){if(!NODES[id])NODES[id]={id,name,parent,kids:null,open:false};else if(name)NODES[id].name=name;return NODES[id];}
+const ROOTN=node(ROOT_ID,'269 촬영 원본 무보정',null);ROOTN.open=true;let SEL='';
+const FOLDER_SM='<svg class="fi" viewBox="0 0 24 20"><path d="M1 3a2 2 0 0 1 2-2h6l2 2h10a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2z" fill="#f4b740"/><path d="M1 7h22v10a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2z" fill="#ffcf5c"/></svg>';
+function syncTree(r,path){
+ let par=null;
+ path.forEach(p=>{const n=node(p.id,p.name,par);n.open=true;if(par){if(!par.kids)par.kids=[];if(!par.kids.includes(n))par.kids.push(n);}par=n;});
+ par.kids=(r.folders||[]).map(f=>node(f.id,f.name,par));par.loaded=true;par.open=true;SEL=par.id;
+}
+function renderTree(){
+ const rows=[];
+ (function walk(n,d){
+  const ar=n.loaded&&!n.kids.length?'<span class="ar"></span>':`<span class="ar${n.open?' o':''}" data-ar="1">›</span>`;
+  rows.push(`<div class="tr${n.id===SEL?' sel':''}" data-id="${n.id}" style="padding-left:${6+d*20}px">${ar}${FOLDER_SM}<span class="tn">${esc(n.name)}</span>${n.loading?'<span class="ld">⏳</span>':''}</div>`);
+  if(n.open&&n.kids)n.kids.forEach(k=>walk(k,d+1));
+ })(ROOTN,0);
+ $('fb').innerHTML=rows.join('');
+}
+$('fb').addEventListener('click',e=>{
+ const row=e.target.closest('.tr');if(!row)return;const n=NODES[row.dataset.id];
+ if(e.target.dataset.ar&&n.loaded){n.open=!n.open;renderTree();return;}
+ check({folderId:n.id});
+});
+
+
 const FOLDER_SVG='<svg viewBox="0 0 52 44"><path d="M4 8a4 4 0 0 1 4-4h12l5 5h19a4 4 0 0 1 4 4v23a4 4 0 0 1-4 4H8a4 4 0 0 1-4-4z" fill="#f4b740"/><path d="M4 15h44v21a4 4 0 0 1-4 4H8a4 4 0 0 1-4-4z" fill="#ffcf5c"/></svg>';
 const esc=t=>String(t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 async function check(opt){
@@ -249,10 +285,10 @@ async function check(opt){
   req=m?{action:'check',folderId:m[1]}:{action:'check',product};
  }
  if(!PIN){$('pinBox').hidden=false;out.innerHTML='<div class="cres" style="color:var(--warn)">사용 비밀번호를 먼저 넣어 주세요.</div>';return;}
- $('fb').innerHTML='';out.innerHTML='<div class="cres">⏳ 드라이브를 확인하고 있습니다…</div>';
+ out.innerHTML='<div class="cres">⏳ 드라이브를 확인하고 있습니다…</div>';if(req.folderId&&NODES[req.folderId]){NODES[req.folderId].loading=true;renderTree();}
  try{
   const r=await call(req);
-  if(!r.found){out.innerHTML=`<div class="cres" style="color:var(--warn)">"${esc(product)}" 폴더가 아직 없습니다.</div>`;$('fb').innerHTML='<button class="btn" id="fbStart2">📁 촬영 폴더 열기</button>';$('fbStart2').onclick=()=>check({root:true});return;}
+  if(!r.found){out.innerHTML=`<div class="cres" style="color:var(--warn)">"${esc(product)}" 폴더가 아직 없습니다.</div>`;return;}
   /* 폴더 길(경로)과 안쪽 폴더 아이콘 */
   const path=r.path||[{id:r.folderId,name:r.folderName}];
   CUR=path.map((p,k)=>({id:k===0?'':p.id,name:p.name}));if(CUR.length===1&&r.folderId)CUR[0].id='';
@@ -263,14 +299,14 @@ async function check(opt){
   else if(!isProduct&&pn&&pn===AUTO_NAME){$('pname').value='';AUTO_NAME='';}
   showWhere();upd(false);
   const subs=r.folders||[];
-  $('fb').innerHTML=`<div class="crumb">${path.map((p,k)=>k<path.length-1?`<button data-fid="${p.id}">📁 ${esc(p.name)}</button><i>›</i>`:`<button class="cur" disabled>📂 ${esc(p.name)}</button>`).join('')}</div>
-   ${path.length>1?`<button class="up" data-fid="${path[path.length-2].id}">⬅ 위 폴더로</button>`:''}
-   ${subs.length>9?`<input class="ffilter" id="ffilter" type="text" placeholder="폴더 이름 찾기 (${subs.length}개)">`:''}
-   ${subs.length?`<div class="fgrid" id="fgrid">${subs.map(f=>`<button class="fd" data-fid="${f.id}" data-nm="${esc(f.name)}">${FOLDER_SVG}${esc(f.name)}</button>`).join('')}</div>`:''}`;
-  $('fb').querySelectorAll('[data-fid]').forEach(el=>el.onclick=()=>check({folderId:el.dataset.fid}));
-  const ff=$('ffilter');if(ff)ff.oninput=()=>{const q=ff.value.trim().toLowerCase();$('fgrid').querySelectorAll('.fd').forEach(el=>el.hidden=q&&!el.dataset.nm.toLowerCase().includes(q));};
-  if(!r.files.length){
-   out.innerHTML=`<div class="cres">${subs.length?'이 폴더에는 사진이 없습니다. 위 폴더를 눌러 들어가 주세요.':'빈 폴더입니다.'}</div>`;
+  if(r.folders)syncTree(r,path);
+  const IMG=/\.(jpe?g|png|heic|heif|webp|gif)$/i;
+  if(!r.folders){
+   out.innerHTML='<div class="cres" style="color:var(--warn)">⚠ 앱스크립트가 예전 버전이라 안쪽 폴더를 보여 줄 수 없습니다. 최신 상품촬영_Code.gs를 붙여 넣고 "배포 관리 → 연필 → 새 버전 → 배포"를 해 주세요.</div>';
+   return;
+  }
+  if(!r.files.some(f=>IMG.test(f.name))){
+   out.innerHTML=`<div class="cres">${subs.length?'이 폴더에는 사진이 없습니다. 위 목록에서 안쪽 폴더를 눌러 주세요.':'빈 폴더입니다.'}</div>`;
    return;
   }
   const names=r.files.map(f=>f.name),used=new Set();
@@ -304,6 +340,7 @@ async function check(opt){
   $('fUrl').value=r.folderUrl||'';
 
  }catch(e){out.innerHTML=`<div class="cres" style="color:var(--warn)">❌ ${e.message}</div>`;}
+ finally{Object.values(NODES).forEach(n=>n.loading=false);renderTree();}
 }
 /* ───── 크게 보기 ───── */
 let RETAKE=null;
