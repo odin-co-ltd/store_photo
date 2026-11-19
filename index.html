@@ -57,6 +57,8 @@ input[type=text]{width:100%;font-size:20px;padding:12px;border:2px solid var(--l
 .tile .src{position:absolute;right:6px;bottom:30px;font-size:11px;background:var(--ok);color:#fff;border-radius:6px;padding:1px 5px}
 .dimg{width:100%;aspect-ratio:1;object-fit:contain;border-radius:8px;background:#fff;display:block;margin-bottom:4px}
 .tile .no,.tile .ck{z-index:1;background:var(--card);border-radius:8px;padding:0 5px}
+.nothumb{width:100%;aspect-ratio:1;border-radius:8px;box-sizing:border-box;padding:4px;display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--ok);font-weight:800;font-size:15px;border:2px dashed var(--ok)}
+.nothumb small{font-size:11px;color:var(--sub);font-weight:400;word-break:break-all}
 </style>
 </head>
 <body>
@@ -209,17 +211,23 @@ async function check(){
   const hit=DIRS.map(([nm])=>{const k=key(nm);const ms=names.filter(n=>key(n)===k);ms.forEach(n=>used.add(n));return ms.length;});
   /* 확인된 사진을 위 방향 버튼에 그림으로 보여 주기 (그 폰에서 새로 찍은 사진이 있으면 그 사진 우선) */
   const fileBy={};r.files.forEach(f=>fileBy[f.name]=f);
+  const thumbOf=f=>f.thumb||(f.id?`https://drive.google.com/thumbnail?id=${f.id}&sz=w400`:'');
   DIRS.forEach(([nm],i)=>{const t=TILES[i];if(shots[nm])return;
-   const k=key(nm),ms=names.filter(n=>key(n)===k),f=ms.map(n=>fileBy[n]).reverse().find(f=>f.thumb);
+   const k=key(nm),ms=names.filter(n=>key(n)===k).map(n=>fileBy[n]);
+   const f=ms.slice().reverse().find(f=>thumbOf(f))||ms[ms.length-1];
    const pic=t.querySelector('.pic');pic.innerHTML='';const old=t.querySelector('.src');if(old)old.remove();
-   if(ms.length){t.classList.add('done');if(f)pic.innerHTML=`<img class="th" src="${f.thumb}" alt="">`;else t.classList.remove('done');
-    if(f)t.insertAdjacentHTML('beforeend','<span class="src">드라이브</span>');}
-   else t.classList.remove('done');});
+   if(!f){t.classList.remove('done');return;}
+   t.classList.add('done');
+   const u=thumbOf(f);
+   pic.innerHTML=u?`<img class="th" src="${u}" alt="" onerror="this.outerHTML='<div class=&quot;th nothumb&quot;>사진 있음<br><small>${f.name}</small></div>'">`:`<div class="th nothumb">사진 있음<br><small>${f.name}</small></div>`;
+   t.insertAdjacentHTML('beforeend','<span class="src">드라이브</span>');});
+  if(!r.version)out.dataset.old='1';
   const dets=names.filter(n=>!used.has(n)&&key(n).startsWith('디테일'));dets.forEach(n=>used.add(n));
-  DRIVE_DETS=dets.map(d=>fileBy[d]);drawDet();
+  DRIVE_DETS=dets.map(d=>{const f=fileBy[d];return {...f,thumb:thumbOf(f)};});drawDet();
   const miss=DIRS.filter((_,i)=>!hit[i]).map(d=>d[0]),other=names.filter(n=>!used.has(n));
   out.innerHTML=`<div class="cres">폴더: <a href="${r.folderUrl}" target="_blank" rel="noopener">${r.folderName}</a> · 파일 ${names.length}개</div>
   <div class="cg">${DIRS.map(([nm],i)=>`<div class="${hit[i]?'y':'n'}">${hit[i]?'✓':'✗'} ${nm}${hit[i]>1?` (${hit[i]})`:''}</div>`).join('')}</div>
+  ${r.version?'':'<div class="cres" style="color:var(--warn)">⚠ 앱스크립트가 예전 버전이라 사진을 받아오지 못했습니다. 새 코드를 붙여 넣고 "새 버전"으로 배포해 주세요.</div>'}
   <div class="cres">9방향 중 <b>${9-miss.length}장 있음</b>${miss.length?` · <b style="color:var(--warn)">빠진 사진: ${miss.join(', ')}</b>`:''}</div>
   <div class="cres" style="margin-top:10px"><b>디테일 ${dets.length}장</b></div>${dets.length?`<div class="cg">${dets.map(d=>`<div class="y">✓ ${d.replace(/\.[^.]+$/,'')}</div>`).join('')}</div>`:''}<div class="cres">${other.length?`그 밖의 파일 ${other.length}개: ${other.join(', ')}`:''}</div>`;
  }catch(e){out.innerHTML=`<div class="cres" style="color:var(--warn)">❌ ${e.message}</div>`;}
