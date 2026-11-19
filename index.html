@@ -48,11 +48,14 @@ input[type=text]{width:100%;font-size:20px;padding:12px;border:2px solid var(--l
 .cg .y{border-color:var(--ok);color:var(--ok)}
 .cg .n{border-color:var(--warn);color:var(--warn);border-style:dashed}
 .cres{font-size:15px;color:var(--sub);margin-top:8px;line-height:1.6}
+.pinbox{margin-bottom:10px}
+.pinbox input{width:100%;font-size:20px;padding:12px;border:2px solid var(--warn);border-radius:10px;background:var(--card);color:var(--ink)}
 </style>
 </head>
 <body>
 <div class="wrap">
- <h1>상품 촬영 <span class="badge">시안 · 저장 안 됨</span></h1>
+ <h1>상품 촬영</h1>
+ <div id="pinBox" class="pinbox" hidden><label class="t" for="pin">사용 비밀번호</label><input id="pin" type="password" inputmode="numeric" placeholder="처음 한 번만 입력"></div>
  <label class="t" for="pname">1. 상품 이름</label>
  <input id="pname" type="text" placeholder="예: 코코체어 블랙">
  <div class="prog">2. 방향별 촬영 <span id="cnt">0 / 9</span></div>
@@ -66,7 +69,7 @@ input[type=text]{width:100%;font-size:20px;padding:12px;border:2px solid var(--l
  </div>
  <div class="chk">
   <b>5. 드라이브 저장 확인</b>
-  <div class="cres">드라이브 폴더 주소를 붙여 넣으면, 9방향 사진이 다 들어 있는지 파일 이름으로 확인합니다.</div>
+  <div class="cres">드라이브 폴더 주소를 붙여 넣고 누르면, 9방향 사진이 다 있는지 파일 이름으로 확인합니다. 주소 칸을 비워 두면 맨 위 상품 이름 폴더를 확인합니다.</div>
   <input id="fUrl" type="text" placeholder="https://drive.google.com/drive/folders/...">
   <button class="btn" id="fBtn">폴더 확인하기</button>
   <div id="fOut"></div>
@@ -138,24 +141,61 @@ function upd(){
  document.getElementById('save').disabled=!ok;
  document.getElementById('msg').textContent=ok?`저장 예정: "${name}" 폴더에 ${n+extras.length}장`:'상품 이름과 사진을 넣으면 버튼이 켜집니다.';
 }
-document.getElementById('save').onclick=()=>{
- const name=document.getElementById('pname').value.trim();
- const files=DIRS.filter(([nm])=>shots[nm]).map(([nm],i)=>`${String(DIRS.findIndex(d=>d[0]===nm)+1).padStart(2,'0')}_${nm.replace('°','')}.jpg`).concat(extras.map((_,i)=>`디테일_${i+1}.jpg`));
- document.getElementById('msg').innerHTML='시안이라 실제 저장은 하지 않습니다.<br>폴더: '+name+'<br>'+files.join('<br>');
+/* ───── 드라이브 연결 ───── */
+const API='https://script.google.com/macros/s/AKfycbw0B7IE5YgaeIwfQCaujgTesCTomZYTL1pzyICR5nSepAjvcJuTVlpVdvn6XNZfT_3B/exec';
+const $=id=>document.getElementById(id);
+let PIN='';try{PIN=localStorage.getItem('camPin')||'';}catch(e){}
+if(!PIN)$('pinBox').hidden=false;
+$('pin').addEventListener('input',()=>{PIN=$('pin').value.trim();try{localStorage.setItem('camPin',PIN);}catch(e){}});
+async function call(body){
+ const r=await fetch(API,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({...body,pin:PIN}),redirect:'follow'});
+ const j=await r.json();
+ if(j.badPin){try{localStorage.removeItem('camPin');}catch(e){}$('pinBox').hidden=false;}
+ if(!j.ok)throw new Error(j.error||'오류');
+ return j;
+}
+const b64=f=>new Promise((ok,no)=>{const r=new FileReader();r.onload=()=>ok(String(r.result).split(',')[1]);r.onerror=no;r.readAsDataURL(f);});
+const extOf=f=>((f.name||'').match(/\.(jpe?g|png|heic|heif|webp)$/i)||[,'jpg'])[1].toLowerCase().replace('jpeg','jpg');
+const fileName=i=>String(i+1).padStart(2,'0')+'_'+DIRS[i][0].replace('°','');
+let busy=false;
+$('save').onclick=async()=>{
+ if(busy)return;
+ const product=$('pname').value.trim();
+ if(!PIN){$('pinBox').hidden=false;$('pin').focus();$('msg').textContent='사용 비밀번호를 먼저 넣어 주세요.';return;}
+ const jobs=[];
+ DIRS.forEach(([nm],i)=>{if(shots[nm])jobs.push({f:shots[nm],name:fileName(i)});});
+ extras.forEach((f,i)=>jobs.push({f,name:'디테일_'+(i+1)}));
+ busy=true;$('save').disabled=true;let done=0,fail=[],folderUrl='';
+ for(const jb of jobs){
+  $('msg').innerHTML=`⏳ 저장 ${done+1} / ${jobs.length} : ${jb.name}`;
+  try{const r=await call({action:'upload',product,name:jb.name+'.'+extOf(jb.f),mime:jb.f.type||'image/jpeg',data:await b64(jb.f)});folderUrl=r.folderUrl;done++;}
+  catch(e){fail.push(jb.name+' ('+e.message+')');if(/비밀번호/.test(e.message))break;}
+ }
+ busy=false;upd();
+ $('msg').innerHTML=fail.length?`❌ ${done}장 저장, ${fail.length}장 실패<br>${fail.join('<br>')}`:`✅ ${done}장 모두 저장했습니다.`;
+ if(folderUrl){$('fUrl').value=folderUrl;}
+ if(done)check();
 };
-/* 저장 확인 (시안: 실제 드라이브 대신 예시 결과) */
-document.getElementById('fBtn').onclick=()=>{
- const v=document.getElementById('fUrl').value.trim(),m=v.match(/folders\/([\w-]{10,})/)||v.match(/[?&]id=([\w-]{10,})/)||v.match(/^([\w-]{20,})$/);
- const out=document.getElementById('fOut');
- if(!m){out.innerHTML='<div class="cres" style="color:var(--warn)">폴더 주소가 아닙니다. 드라이브에서 폴더를 열고 주소창 주소를 그대로 붙여 넣어 주세요.</div>';return;}
- const names=DIRS.map(([nm],i)=>String(i+1).padStart(2,'0')+'_'+nm.replace('°','')+'.jpg');
- const have=new Set(names.filter((_,i)=>i!==4&&i!==7)); /* 예시: 5번·8번이 빠진 경우 */
- const extra=['디테일_1.jpg','디테일_2.jpg'];
- const miss=DIRS.filter((_,i)=>!have.has(names[i])).map(d=>d[0]);
- out.innerHTML=`<div class="cres">폴더 번호: ${m[1].slice(0,12)}… · <b style="color:var(--warn)">시안이라 예시 결과입니다</b></div>
- <div class="cg">${DIRS.map(([nm],i)=>`<div class="${have.has(names[i])?'y':'n'}">${have.has(names[i])?'✓':'✗'} ${nm}</div>`).join('')}</div>
- <div class="cres">9방향 중 <b>${9-miss.length}장 있음</b>${miss.length?` · <b style="color:var(--warn)">빠진 사진: ${miss.join(', ')}</b>`:''}<br>그 밖의 파일 ${extra.length}개: ${extra.join(', ')}</div>`;
-};
+/* ───── 저장 확인 ───── */
+$('fBtn').onclick=()=>check();
+async function check(){
+ const out=$('fOut'),v=$('fUrl').value.trim(),product=$('pname').value.trim();
+ const m=v.match(/folders\/([\w-]{10,})/)||v.match(/[?&]id=([\w-]{10,})/)||v.match(/^([\w-]{20,})$/);
+ if(v&&!m){out.innerHTML='<div class="cres" style="color:var(--warn)">폴더 주소가 아닙니다. 드라이브에서 폴더를 열고 주소창 주소를 그대로 붙여 넣어 주세요.</div>';return;}
+ if(!v&&!product){out.innerHTML='<div class="cres" style="color:var(--warn)">폴더 주소를 넣거나, 맨 위에 상품 이름을 적어 주세요.</div>';return;}
+ if(!PIN){$('pinBox').hidden=false;out.innerHTML='<div class="cres" style="color:var(--warn)">사용 비밀번호를 먼저 넣어 주세요.</div>';return;}
+ out.innerHTML='<div class="cres">⏳ 드라이브를 확인하고 있습니다…</div>';
+ try{
+  const r=await call(m?{action:'check',folderId:m[1]}:{action:'check',product});
+  if(!r.found){out.innerHTML=`<div class="cres" style="color:var(--warn)">"${product}" 폴더가 아직 없습니다.</div>`;return;}
+  const names=r.files.map(f=>f.name),used=new Set();
+  const hit=DIRS.map((_,i)=>{const pre=String(i+1).padStart(2,'0')+'_';const ms=names.filter(n=>n.startsWith(pre));ms.forEach(n=>used.add(n));return ms.length;});
+  const miss=DIRS.filter((_,i)=>!hit[i]).map(d=>d[0]),other=names.filter(n=>!used.has(n));
+  out.innerHTML=`<div class="cres">폴더: <a href="${r.folderUrl}" target="_blank" rel="noopener">${r.folderName}</a> · 파일 ${names.length}개</div>
+  <div class="cg">${DIRS.map(([nm],i)=>`<div class="${hit[i]?'y':'n'}">${hit[i]?'✓':'✗'} ${nm}${hit[i]>1?` (${hit[i]})`:''}</div>`).join('')}</div>
+  <div class="cres">9방향 중 <b>${9-miss.length}장 있음</b>${miss.length?` · <b style="color:var(--warn)">빠진 사진: ${miss.join(', ')}</b>`:''}${other.length?`<br>그 밖의 파일 ${other.length}개: ${other.join(', ')}`:''}</div>`;
+ }catch(e){out.innerHTML=`<div class="cres" style="color:var(--warn)">❌ ${e.message}</div>`;}
+}
 </script>
 </body>
 </html>
