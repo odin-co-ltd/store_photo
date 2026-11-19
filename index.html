@@ -142,7 +142,7 @@ const BOX=[ // [x1,x2,y1,y2,z1,z2,색]
  [-16,16,14,17,-19,-17,'w'],[-16,16,14,17,15,17,'w']         // 아래 가로대
 ];
 function chairSVG(yaw,el){
- const cy=Math.cos(yaw*Math.PI/180),sy=Math.sin(yaw*Math.PI/180),ce=Math.cos(el*Math.PI/180),se=Math.sin(el*Math.PI/180);
+ yaw=-yaw;const cy=Math.cos(yaw*Math.PI/180),sy=Math.sin(yaw*Math.PI/180),ce=Math.cos(el*Math.PI/180),se=Math.sin(el*Math.PI/180);
  const P=([x,y,z])=>{const x1=x*cy-z*sy,z1=x*sy+z*cy;y-=43;return [x1,y*ce-z1*se,y*se+z1*ce];};
  const F=[];
  BOX.forEach(([a,b,c,d,e,f,k])=>{
