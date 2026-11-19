@@ -96,7 +96,7 @@ input[type=text]{width:100%;font-size:20px;padding:12px;border:2px solid var(--l
 <body>
 <div class="wrap">
  <h1>상품 촬영</h1>
- <div id="pinBox" class="pinbox" hidden><label class="t" for="pin">사용 비밀번호</label><input id="pin" type="password" inputmode="numeric" placeholder="처음 한 번만 입력"></div>
+ <div id="pinBox" class="pinbox" hidden><label class="t" for="pin">사용 비밀번호</label><input id="pin" type="tel" inputmode="numeric" autocomplete="off" autocorrect="off" spellcheck="false" placeholder="처음 한 번만 입력" style="letter-spacing:4px"></div>
  <label class="t" for="pname">1. 상품 이름</label>
  <input id="pname" type="text" placeholder="예: 코코체어 블랙">
  <div class="where" id="where">저장 위치: 269 촬영 원본 무보정 › (상품 이름)</div>
@@ -201,11 +201,11 @@ const $=id=>document.getElementById(id);
 let PIN='';try{PIN=localStorage.getItem('camPin')||'';}catch(e){}
 if(!PIN)$('pinBox').hidden=false;
 window.addEventListener('load',()=>{showWhere();renderTree();if(PIN)check({folderId:ROOT_ID});});
-$('pin').addEventListener('input',()=>{PIN=$('pin').value.trim();try{localStorage.setItem('camPin',PIN);}catch(e){}});
+$('pin').addEventListener('input',()=>{PIN=$('pin').value.replace(/\s+/g,'');try{localStorage.setItem('camPin',PIN);}catch(e){}});
 async function call(body){
  const r=await fetch(API,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({...body,pin:PIN}),redirect:'follow'});
  const j=await r.json();
- if(j.badPin){try{localStorage.removeItem('camPin');}catch(e){}$('pinBox').hidden=false;}
+ if(j.badPin){try{localStorage.removeItem('camPin');}catch(e){}PIN='';$('pin').value='';$('pinBox').hidden=false;$('pin').focus();}
  if(!j.ok)throw new Error(j.error||'오류');
  return j;
 }
