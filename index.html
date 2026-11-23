@@ -91,15 +91,25 @@ input[type=text]{width:100%;font-size:20px;padding:12px;border:2px solid var(--l
 .tr .fi{width:24px;height:20px;flex:none}
 .tr .tn{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .tr .ld{margin-left:auto;font-size:14px}
+.target{border:3px solid var(--warn);border-radius:12px;padding:10px 12px;margin:4px 0 12px;font-size:17px;line-height:1.5;background:var(--card)}
+.target.ok{border-color:var(--ok)}
+.target b{font-size:19px}
+.target button{margin-top:6px;font-size:15px;font-weight:700;border:2px solid var(--line);background:var(--bg);color:var(--ink);border-radius:8px;padding:4px 10px;cursor:pointer}
+.fbtns{display:grid;gap:8px;margin-top:10px}
+.fbtns button{font-size:18px;font-weight:800;padding:12px;border-radius:12px;border:0;cursor:pointer}
+.fbtns .pinb{background:var(--ok);color:#fff}
+.fbtns .newb{background:var(--card);color:var(--blue);border:2px solid var(--blue)}
+.tr .pin{margin-left:4px}
 </style>
 </head>
 <body>
 <div class="wrap">
  <h1>상품 촬영</h1>
  <div id="pinBox" class="pinbox" hidden><label class="t" for="pin">사용 비밀번호</label><input id="pin" type="tel" inputmode="numeric" autocomplete="off" autocorrect="off" spellcheck="false" placeholder="처음 한 번만 입력" style="letter-spacing:4px"></div>
+ <div class="target" id="target"></div>
  <label class="t" for="pname">1. 상품 이름</label>
  <input id="pname" type="text" placeholder="예: 코코체어 블랙">
- <div class="where" id="where">저장 위치: 269 촬영 원본 무보정 › (상품 이름)</div>
+ <div class="where" id="where"></div>
  <div class="prog">2. 방향별 촬영 <span id="cnt">0 / 9</span></div>
  <div class="bar"><i id="barI"></i></div>
  <div class="grid" id="grid"></div>
@@ -113,6 +123,7 @@ input[type=text]{width:100%;font-size:20px;padding:12px;border:2px solid var(--l
   <b>5. 드라이브 저장 확인</b>
   <div class="cres">폴더 이름을 누르면 안쪽 폴더가 펼쳐지고, 그 폴더의 사진을 위 2번·3번 칸에 보여 줍니다. 새로 찍은 사진은 파랗게 고른 폴더 안에 상품 이름 폴더를 만들어 저장합니다.</div>
   <div id="fb" class="tree"></div>
+  <div class="fbtns" id="fbtns"></div>
   <div id="fOut"></div>
   <details class="byurl"><summary>폴더 주소로 확인하기</summary>
    <input id="fUrl" type="text" value="https://drive.google.com/drive/u/0/folders/1LVTdCj3k7PzJzHIDgmgN9fy4Zy9lMCnJ" placeholder="https://drive.google.com/drive/folders/...">
@@ -191,16 +202,16 @@ function upd(withMsg=true){
  document.getElementById('cnt').textContent=n+' / '+DIRS.length;
  document.getElementById('barI').style.width=(n/DIRS.length*100)+'%';
  const name=document.getElementById('pname').value.trim();
- const ok=name&&(n+extras.length)>0;
+ const ok=!!TARGET&&(n+extras.length)>0;
  document.getElementById('save').disabled=!ok;
- if(withMsg)document.getElementById('msg').textContent=ok?`저장 예정: "${name}" 폴더에 ${n+extras.length}장`:'상품 이름과 사진을 넣으면 버튼이 켜집니다.';
+ if(withMsg)document.getElementById('msg').textContent=ok?`저장 예정: 📌 "${TARGET.path[TARGET.path.length-1]}" 폴더에 ${n+extras.length}장`:(!TARGET?'📌 저장 폴더를 먼저 고정해 주세요.':'사진을 찍으면 버튼이 켜집니다.');
 }
 /* ───── 드라이브 연결 ───── */
 const API='https://script.google.com/macros/s/AKfycbw0B7IE5YgaeIwfQCaujgTesCTomZYTL1pzyICR5nSepAjvcJuTVlpVdvn6XNZfT_3B/exec';
 const $=id=>document.getElementById(id);
 let PIN='';try{PIN=localStorage.getItem('camPin')||'';}catch(e){}
 if(!PIN)$('pinBox').hidden=false;
-window.addEventListener('load',()=>{showWhere();renderTree();if(PIN)check({folderId:ROOT_ID});});
+window.addEventListener('load',()=>{if(TARGET)$('pname').value=TARGET.path[TARGET.path.length-1];showWhere();renderTree();drawFolderBtns();upd(false);if(PIN)check({folderId:TARGET?TARGET.id:ROOT_ID});});
 $('pin').addEventListener('input',()=>{PIN=$('pin').value.replace(/\s+/g,'');try{localStorage.setItem('camPin',PIN);}catch(e){}});
 async function call(body){
  const r=await fetch(API,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({...body,pin:PIN}),redirect:'follow'});
@@ -213,13 +224,37 @@ const b64=f=>new Promise((ok,no)=>{const r=new FileReader();r.onload=()=>ok(Stri
 const extOf=f=>((f.name||'').match(/\.(jpe?g|png|heic|heif|webp)$/i)||[,'jpg'])[1].toLowerCase().replace('jpeg','jpg');
 const fileName=i=>String(i+1).padStart(2,'0')+'_'+DIRS[i][0].replace('°','');
 let busy=false;
-/* 저장 위치: 아래 5번에서 열어 둔 폴더(CUR). 상품 이름이 그 폴더 이름과 같으면 그 폴더에 바로 저장, 다르면 그 안에 상품 폴더를 만들어 저장 */
-let CUR=[{id:'',name:'269 촬영 원본 무보정'}],AUTO_NAME='';
+/* ───── 저장 폴더 고정 ─────
+   사진은 언제나 "📌 고정한 폴더"에만 저장합니다. 다른 폴더를 둘러봐도 바뀌지 않고, 앱을 다시 열어도 기억합니다. */
+let CUR=[{id:'',name:'269 촬영 원본 무보정'}];
+let TARGET=null;try{TARGET=JSON.parse(localStorage.getItem('camTarget')||'null');}catch(e){}
 function curFolder(){return CUR[CUR.length-1];}
-function saveTarget(){const n=$('pname').value.trim(),c=curFolder();return (c.id&&CUR.length>1&&n===c.name)?{into:c.id}:{parent:c.id};}
-function showWhere(){const n=$('pname').value.trim(),t=saveTarget(),names=CUR.map(p=>p.name);
- $('where').innerHTML='저장 위치: '+names.map(esc).join(' › ')+(t.into?' <b>(이 폴더에 이어서 저장)</b>':' › <b>'+(n?esc(n):'(상품 이름)')+'</b>'+(n?' <small>(없으면 새로 만듦)</small>':''));}
-$('pname').addEventListener('input',()=>{AUTO_NAME='';showWhere();});
+function setTarget(t){TARGET=t;try{t?localStorage.setItem('camTarget',JSON.stringify(t)):localStorage.removeItem('camTarget');}catch(e){}
+ if(t)$('pname').value=t.path[t.path.length-1];showWhere();upd(false);renderTree();drawFolderBtns();}
+function showWhere(){
+ const b=$('target');
+ if(TARGET){b.className='target ok';b.innerHTML=`📌 사진 저장 폴더 (고정)<br><b>${TARGET.path.map(esc).join(' › ')}</b><br><button id="unpin" type="button">고정 풀기</button>`;$('unpin').onclick=()=>setTarget(null);}
+ else{b.className='target';b.innerHTML='⚠ 저장할 폴더가 아직 고정되지 않았습니다.<br>아래 5번에서 폴더를 열고 <b>📌 이 폴더에 저장</b>을 누르거나, 상품 이름을 적고 <b>＋ 새 상품 폴더 만들기</b>를 누르세요.';}
+ $('where').textContent='';
+}
+/* 5번 폴더 칸 아래 버튼: 지금 열어 둔 폴더를 고정 / 그 안에 새 상품 폴더 */
+function drawFolderBtns(){
+ const box=$('fbtns');if(!box)return;const c=curFolder(),n=$('pname').value.trim();
+ const pinned=TARGET&&TARGET.id===c.id;
+ box.innerHTML=(CUR.length>1?`<button class="pinb" id="pinHere" type="button">${pinned?'✅ 이 폴더에 저장 중':'📌 이 폴더에 저장 ('+esc(c.name)+')'}</button>`:'')
+  +`<button class="newb" id="newHere" type="button">＋ 「${esc(c.name)}」 안에 새 상품 폴더 만들기${n&&n!==c.name?' ('+esc(n)+')':''}</button>`;
+ const ph=$('pinHere');if(ph)ph.onclick=()=>{setTarget({id:c.id,path:CUR.map(p=>p.name)});toast('📌 고정: '+c.name);};
+ $('newHere').onclick=async()=>{
+  const name=$('pname').value.trim();
+  if(!name||name===c.name){$('pname').focus();toast('맨 위 상품 이름 칸에 새 상품 이름을 적어 주세요');return;}
+  try{const r=await call({action:'mkdir',parentId:c.id,name});
+   if(!r.folderId)throw new Error('앱스크립트를 최신 버전으로 배포해 주세요');
+   setTarget({id:r.folderId,path:(r.path||[]).map(p=>p.name)});toast((r.existed?'📌 있던 폴더를 고정: ':'📌 새 폴더를 만들고 고정: ')+r.folderName);check({folderId:r.folderId});}
+  catch(e){toast('❌ '+e.message);}
+ };
+}
+$('pname').addEventListener('input',()=>{drawFolderBtns();upd(false);});
+function toast(t){let e=document.getElementById('toast');if(!e){e=document.createElement('div');e.id='toast';e.style.cssText='position:fixed;left:50%;bottom:110px;transform:translateX(-50%);background:#222;color:#fff;padding:10px 16px;border-radius:10px;font-size:16px;z-index:200;max-width:90%;transition:opacity .2s';document.body.appendChild(e);}e.textContent=t;e.style.opacity=1;clearTimeout(toast.t);toast.t=setTimeout(()=>e.style.opacity=0,2500);}
 $('save').onclick=async()=>{
  if(busy)return;
  const product=$('pname').value.trim();
@@ -227,11 +262,12 @@ $('save').onclick=async()=>{
  const jobs=[];
  DIRS.forEach(([nm],i)=>{if(shots[nm])jobs.push({f:shots[nm],name:fileName(i),nm});});
  extras.forEach((f,i)=>jobs.push({f,name:'디테일'+(DRIVE_DETS.length+i+1),ex:true}));
- const tg=saveTarget(),okEx=new Set();
+ if(!TARGET){showWhere();$('target').scrollIntoView({block:'center'});$('msg').textContent='📌 저장할 폴더를 먼저 고정해 주세요.';return;}
+ const tg={into:TARGET.id},okEx=new Set();
  busy=true;$('save').disabled=true;let done=0,fail=[],folderUrl='',savedId='';
  for(const jb of jobs){
   $('msg').innerHTML=`⏳ 저장 ${done+1} / ${jobs.length} : ${jb.name}`;
-  try{const r=await call({action:'upload',product,intoFolderId:tg.into||'',parentId:tg.parent||'',name:jb.name+'.'+extOf(jb.f),mime:jb.f.type||'image/jpeg',data:await b64(jb.f)});folderUrl=r.folderUrl;savedId=r.folderId;done++;if(jb.nm)delete shots[jb.nm];if(jb.ex)okEx.add(jb.f);}
+  try{const r=await call({action:'upload',product,intoFolderId:tg.into,parentId:'',name:jb.name+'.'+extOf(jb.f),mime:jb.f.type||'image/jpeg',data:await b64(jb.f)});folderUrl=r.folderUrl;savedId=r.folderId;if(r.folderId&&r.folderId!==TARGET.id)fail.push(jb.name+' (⚠ 다른 폴더에 저장됨: '+(r.folderName||'')+' — 앱스크립트 최신 배포 필요)');done++;if(jb.nm)delete shots[jb.nm];if(jb.ex)okEx.add(jb.f);}
   catch(e){fail.push(jb.name+' ('+e.message+')');if(/비밀번호/.test(e.message))break;}
  }
  /* 저장된 사진은 이 폰 목록에서 빼서 두 번 올라가지 않게 함 (드라이브 사진으로 다시 보임) */
@@ -239,7 +275,7 @@ $('save').onclick=async()=>{
  busy=false;upd(false);drawDet();
  $('msg').innerHTML=fail.length?`❌ ${done}장 저장, ${fail.length}장 실패<br>${fail.join('<br>')}`:`✅ ${done}장 모두 저장했습니다.`;
  if(folderUrl){$('fUrl').value=folderUrl;}
- if(done&&savedId)check({folderId:savedId});
+ if(done)check({folderId:TARGET.id});
 };
 /* ───── 저장 확인 ───── */
 $('fBtn').onclick=()=>check();
@@ -258,7 +294,7 @@ function renderTree(){
  const rows=[];
  (function walk(n,d){
   const ar=n.loaded&&!n.kids.length?'<span class="ar"></span>':`<span class="ar${n.open?' o':''}" data-ar="1">›</span>`;
-  rows.push(`<div class="tr${n.id===SEL?' sel':''}" data-id="${n.id}" style="padding-left:${6+d*20}px">${ar}${FOLDER_SM}<span class="tn">${esc(n.name)}</span>${n.loading?'<span class="ld">⏳</span>':''}</div>`);
+  rows.push(`<div class="tr${n.id===SEL?' sel':''}" data-id="${n.id}" style="padding-left:${6+d*20}px">${ar}${FOLDER_SM}<span class="tn">${esc(n.name)}</span>${TARGET&&TARGET.id===n.id?'<span class="pin">📌</span>':''}${n.loading?'<span class="ld">⏳</span>':''}</div>`);
   if(n.open&&n.kids)n.kids.forEach(k=>walk(k,d+1));
  })(ROOTN,0);
  $('fb').innerHTML=rows.join('');
@@ -293,11 +329,7 @@ async function check(opt){
   const path=r.path||[{id:r.folderId,name:r.folderName}];
   CUR=path.map((p,k)=>({id:k===0?'':p.id,name:p.name}));if(CUR.length===1&&r.folderId)CUR[0].id='';
   /* 사진이 들어 있는 폴더 = 상품 폴더 → 상품 이름 칸에 폴더 이름을 넣어 이어서 촬영 */
-  const isProduct=(r.files||[]).some(f=>/\.(jpe?g|png|heic|heif|webp)$/i.test(f.name));
-  const pn=$('pname').value.trim();
-  if(isProduct&&path.length>1&&(!pn||pn===AUTO_NAME)){$('pname').value=path[path.length-1].name;AUTO_NAME=$('pname').value;}
-  else if(!isProduct&&pn&&pn===AUTO_NAME){$('pname').value='';AUTO_NAME='';}
-  showWhere();upd(false);
+  showWhere();upd(false);drawFolderBtns();
   const subs=r.folders||[];
   if(r.folders)syncTree(r,path);
   const IMG=/\.(jpe?g|png|heic|heif|webp|gif)$/i;
