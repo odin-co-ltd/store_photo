@@ -304,7 +304,7 @@ function renderTree(){
  (function walk(n,d){
   const ar=n.loaded&&!n.kids.length?'<span class="ar"></span>':`<span class="ar${n.open?' o':''}" data-ar="1">›</span>`;
   const busyOther=LOADING&&LOADING!==n.id;
-  rows.push(`<div class="tr${n.id===SEL?' sel':''}${busyOther?' wait':''}" data-id="${n.id}" style="padding-left:${4+d*22}px">${ar}${(n.id===LOADING||(!LOADING&&n.id===SEL))?'<span class="cur">📍</span>':''}${FOLDER_SM}<span class="tn">${esc(n.name)}</span>${TARGET&&TARGET.id===n.id?'<span class="pin">📌저장</span>':''}${n.loading?'<span class="ld">⏳</span>':''}</div>`);
+  rows.push(`<div class="tr${n.id===SEL?' sel':''}${busyOther?' wait':''}" data-id="${n.id}" style="padding-left:${4+d*22}px">${ar}${(n.id===LOADING||(!LOADING&&n.id===SEL))?'<span class="cur">📍</span>':''}${FOLDER_SM}<span class="tn">${esc(n.name)}</span>${n.loading?'<span class="ld">⏳</span>':''}</div>`);
   if(n.open&&n.kids)n.kids.forEach(k=>walk(k,d+1));
  })(ROOTN,0);
  $('fb').innerHTML=rows.join('');
