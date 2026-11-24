@@ -115,7 +115,7 @@ input[type=text]{width:100%;font-size:20px;padding:12px;border:2px solid var(--l
 <div class="wrap">
  <h1>상품 촬영</h1>
  <div id="pinBox" class="pinbox" hidden><label class="t" for="pin">사용 비밀번호</label><input id="pin" type="tel" inputmode="numeric" autocomplete="off" autocorrect="off" spellcheck="false" placeholder="처음 한 번만 입력" style="letter-spacing:4px"></div>
- <div class="target" id="target"></div>
+ <div class="target" id="target" hidden></div>
  <label class="t" for="pname">1. 상품 이름</label>
  <input id="pname" type="text" placeholder="예: 코코체어 블랙">
  <div class="where" id="where"></div>
@@ -213,7 +213,7 @@ function upd(withMsg=true){
  const name=document.getElementById('pname').value.trim();
  const ok=!!TARGET&&(n+extras.length)>0;
  document.getElementById('save').disabled=!ok;
- if(withMsg)document.getElementById('msg').textContent=ok?`저장 예정: 📌 "${TARGET.path[TARGET.path.length-1]}" 폴더에 ${n+extras.length}장`:(!TARGET?'📌 저장 폴더를 먼저 고정해 주세요.':'사진을 찍으면 버튼이 켜집니다.');
+ if(withMsg)document.getElementById('msg').textContent=ok?`저장 예정: 📍 "${TARGET.path[TARGET.path.length-1]}" 폴더에 ${n+extras.length}장`:(!TARGET?'아래 5번에서 사진을 넣을 폴더를 열어 주세요.':'📍 저장 폴더: '+TARGET.path[TARGET.path.length-1]+' · 사진을 찍으면 버튼이 켜집니다.');
 }
 /* ───── 드라이브 연결 ───── */
 const API='https://script.google.com/macros/s/AKfycbw0B7IE5YgaeIwfQCaujgTesCTomZYTL1pzyICR5nSepAjvcJuTVlpVdvn6XNZfT_3B/exec';
@@ -239,7 +239,7 @@ let CUR=[{id:'',name:'269 촬영 원본 무보정'}];
 let TARGET=null;try{TARGET=JSON.parse(localStorage.getItem('camTarget')||'null');}catch(e){}
 function curFolder(){return CUR[CUR.length-1];}
 function setTarget(t){TARGET=t;try{t?localStorage.setItem('camTarget',JSON.stringify(t)):localStorage.removeItem('camTarget');}catch(e){}
- if(t)$('pname').value=t.path[t.path.length-1];showWhere();upd(false);renderTree();drawFolderBtns();}
+ if(t)$('pname').value=t.path[t.path.length-1];showWhere();upd(!/^[✅❌⏳]/.test($('msg').textContent));renderTree();drawFolderBtns();}
 function showWhere(){
  const b=$('target');
  if(TARGET){b.className='target ok';b.innerHTML=`📌 사진 저장 폴더 (고정)<br><b>${TARGET.path.map(esc).join(' › ')}</b><br><button id="unpin" type="button">고정 풀기</button>`;$('unpin').onclick=()=>setTarget(null);}
@@ -250,10 +250,8 @@ function showWhere(){
 function drawFolderBtns(){
  const box=$('fbtns');if(!box)return;const c=curFolder(),n=$('pname').value.trim();
  const pinned=TARGET&&TARGET.id===c.id;
- box.innerHTML=(CUR.length>1?`<button class="pinb" id="pinHere" type="button">${pinned?'✅ 이 폴더에 저장 중':'📌 이 폴더에 저장 ('+esc(c.name)+')'}</button>`:'')
-  +`<button class="newb" id="newHere" type="button">＋ 「${esc(c.name)}」 안에 새 상품 폴더 만들기${n&&n!==c.name?' ('+esc(n)+')':''}</button>`;
- const ph=$('pinHere');if(ph)ph.onclick=()=>{setTarget({id:c.id,path:CUR.map(p=>p.name)});toast('📌 고정: '+c.name);};
- $('newHere').onclick=async()=>{
+ box.innerHTML=`<button class="newb" id="newHere" type="button">＋ 「${esc(c.name)}」 안에 새 상품 폴더 만들기${n&&n!==c.name?' ('+esc(n)+')':''}</button>`;
+  $('newHere').onclick=async()=>{
   const name=$('pname').value.trim();
   if(!name||name===c.name){$('pname').focus();toast('맨 위 상품 이름 칸에 새 상품 이름을 적어 주세요');return;}
   try{const r=await call({action:'mkdir',parentId:c.id,name});
@@ -271,7 +269,7 @@ $('save').onclick=async()=>{
  const jobs=[];
  DIRS.forEach(([nm],i)=>{if(shots[nm])jobs.push({f:shots[nm],name:fileName(i),nm});});
  extras.forEach((f,i)=>jobs.push({f,name:'디테일'+(DRIVE_DETS.length+i+1),ex:true}));
- if(!TARGET){showWhere();$('target').scrollIntoView({block:'center'});$('msg').textContent='📌 저장할 폴더를 먼저 고정해 주세요.';return;}
+ if(!TARGET){$('fb').scrollIntoView({block:'center'});$('msg').textContent='아래 5번에서 사진을 넣을 폴더를 먼저 열어 주세요 (📍 표시된 폴더에 저장됩니다).';return;}
  const tg={into:TARGET.id},okEx=new Set();
  busy=true;$('save').disabled=true;let done=0,fail=[],folderUrl='',savedId='';
  for(const jb of jobs){
@@ -351,6 +349,8 @@ async function check(opt){
   showWhere();upd(false);drawFolderBtns();
   const subs=r.folders||[];
   if(r.folders)syncTree(r,path);
+  /* 📍 지금 연 폴더 = 사진 저장 폴더 (맨 위 269 폴더는 저장 폴더가 아님) */
+  if(path.length>1)setTarget({id:path[path.length-1].id,path:path.map(p=>p.name)});else setTarget(null);
   const IMG=/\.(jpe?g|png|heic|heif|webp|gif)$/i;
   if(!r.folders){
    out.innerHTML='<div class="cres" style="color:var(--warn)">⚠ 앱스크립트가 예전 버전이라 안쪽 폴더를 보여 줄 수 없습니다. 최신 상품촬영_Code.gs를 붙여 넣고 "배포 관리 → 연필 → 새 버전 → 배포"를 해 주세요.</div>';
