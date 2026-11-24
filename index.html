@@ -82,15 +82,17 @@ input[type=text]{width:100%;font-size:20px;padding:12px;border:2px solid var(--l
 .where b{color:var(--blue)}
 .here{margin-top:8px;background:var(--blue);color:#fff}
 .tree{margin-top:10px;border:1px solid var(--line);border-radius:10px;padding:4px 0;max-height:60vh;overflow:auto}
-.tr{display:flex;align-items:center;gap:6px;padding-top:9px;padding-bottom:9px;padding-right:8px;cursor:pointer;font-size:17px;user-select:none}
+.tr{display:flex;align-items:center;gap:8px;min-height:64px;padding-top:8px;padding-bottom:8px;padding-right:10px;cursor:pointer;font-size:20px;font-weight:600;user-select:none;border-bottom:1px solid var(--line)}
 .tr.sel{background:#e3eefc}
 :root[data-theme="dark"] .tr.sel{background:#1f3350}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .tr.sel{background:#1f3350}}
-.tr .ar{display:inline-block;width:22px;text-align:center;font-size:20px;color:var(--sub);transition:transform .15s;flex:none}
+.tr .ar{display:inline-flex;align-items:center;justify-content:center;width:40px;height:48px;font-size:28px;color:var(--sub);transition:transform .15s;flex:none}
 .tr .ar.o{transform:rotate(90deg)}
-.tr .fi{width:24px;height:20px;flex:none}
-.tr .tn{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.tr .ld{margin-left:auto;font-size:14px}
+.tr .fi{width:46px;height:38px;flex:none}
+.tr .tn{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tr .ld{flex:none;font-size:18px}
+.tr .cur{flex:none;font-size:22px}
+.tr.wait{opacity:.45}
 .target{border:3px solid var(--warn);border-radius:12px;padding:10px 12px;margin:4px 0 12px;font-size:17px;line-height:1.5;background:var(--card)}
 .target.ok{border-color:var(--ok)}
 .target b{font-size:19px}
@@ -99,7 +101,14 @@ input[type=text]{width:100%;font-size:20px;padding:12px;border:2px solid var(--l
 .fbtns button{font-size:18px;font-weight:800;padding:12px;border-radius:12px;border:0;cursor:pointer}
 .fbtns .pinb{background:var(--ok);color:#fff}
 .fbtns .newb{background:var(--card);color:var(--blue);border:2px solid var(--blue)}
-.tr .pin{margin-left:4px}
+.tr .pin{flex:none;font-size:13px;font-weight:800;color:#fff;background:var(--ok);border-radius:6px;padding:2px 6px}
+.mdl{position:fixed;inset:0;background:#0008;z-index:300;display:flex;align-items:center;justify-content:center;padding:16px}
+.mdl[hidden]{display:none}
+.mdl .bx{background:var(--card);color:var(--ink);border-radius:16px;padding:20px;max-width:420px;width:100%;font-size:20px;line-height:1.5;text-align:center}
+.mdl .bx b{display:block;font-size:22px;margin:6px 0 16px;word-break:break-all}
+.mdl .bt{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.mdl button{font-size:20px;font-weight:800;padding:14px 0;border-radius:12px;border:2px solid var(--line);background:var(--bg);color:var(--ink);cursor:pointer}
+.mdl button.yes{background:var(--blue);border-color:var(--blue);color:#fff}
 </style>
 </head>
 <body>
@@ -294,16 +303,26 @@ function renderTree(){
  const rows=[];
  (function walk(n,d){
   const ar=n.loaded&&!n.kids.length?'<span class="ar"></span>':`<span class="ar${n.open?' o':''}" data-ar="1">›</span>`;
-  rows.push(`<div class="tr${n.id===SEL?' sel':''}" data-id="${n.id}" style="padding-left:${6+d*20}px">${ar}${FOLDER_SM}<span class="tn">${esc(n.name)}</span>${TARGET&&TARGET.id===n.id?'<span class="pin">📌</span>':''}${n.loading?'<span class="ld">⏳</span>':''}</div>`);
+  const busyOther=LOADING&&LOADING!==n.id;
+  rows.push(`<div class="tr${n.id===SEL?' sel':''}${busyOther?' wait':''}" data-id="${n.id}" style="padding-left:${4+d*22}px">${ar}${(n.id===LOADING||(!LOADING&&n.id===SEL))?'<span class="cur">📍</span>':''}${FOLDER_SM}<span class="tn">${esc(n.name)}</span>${TARGET&&TARGET.id===n.id?'<span class="pin">📌저장</span>':''}${n.loading?'<span class="ld">⏳</span>':''}</div>`);
   if(n.open&&n.kids)n.kids.forEach(k=>walk(k,d+1));
  })(ROOTN,0);
  $('fb').innerHTML=rows.join('');
 }
-$('fb').addEventListener('click',e=>{
+let LOADING='';
+$('fb').addEventListener('click',async e=>{
  const row=e.target.closest('.tr');if(!row)return;const n=NODES[row.dataset.id];
- if(e.target.dataset.ar&&n.loaded){n.open=!n.open;renderTree();return;}
- check({folderId:n.id});
+ if(LOADING){toast(`⚠ 「${(NODES[LOADING]||{}).name||'폴더'}」을(를) 불러오는 중입니다. 끝날 때까지 기다려 주세요.`);return;}
+ if(e.target.dataset.ar&&n.loaded){n.open=!n.open;renderTree();return;}   /* 화살표: 펼치기/접기만 */
+ if(n.id===SEL){if(!n.loaded)openFolder(n);return;}
+ if(!(await ask(`「${n.name}」 폴더로 이동하시겠습니까?`)))return;
+ openFolder(n);
 });
+async function openFolder(n){LOADING=n.id;renderTree();try{await check({folderId:n.id});}finally{LOADING='';renderTree();}}
+/* 큰 글씨 확인 창 (예 / 아니요) */
+function ask(msg){return new Promise(res=>{let m=$('mdl');if(!m){m=document.createElement('div');m.id='mdl';m.className='mdl';document.body.appendChild(m);}
+ m.innerHTML=`<div class="bx">폴더 이동<b>${esc(msg)}</b><div class="bt"><button class="no" type="button">아니요</button><button class="yes" type="button">예, 이동</button></div></div>`;m.hidden=false;
+ const done=v=>{m.hidden=true;res(v);};m.querySelector('.no').onclick=()=>done(false);m.querySelector('.yes').onclick=()=>done(true);m.onclick=ev=>{if(ev.target===m)done(false);};});}
 
 
 const FOLDER_SVG='<svg viewBox="0 0 52 44"><path d="M4 8a4 4 0 0 1 4-4h12l5 5h19a4 4 0 0 1 4 4v23a4 4 0 0 1-4 4H8a4 4 0 0 1-4-4z" fill="#f4b740"/><path d="M4 15h44v21a4 4 0 0 1-4 4H8a4 4 0 0 1-4-4z" fill="#ffcf5c"/></svg>';
@@ -321,7 +340,7 @@ async function check(opt){
   req=m?{action:'check',folderId:m[1]}:{action:'check',product};
  }
  if(!PIN){$('pinBox').hidden=false;out.innerHTML='<div class="cres" style="color:var(--warn)">사용 비밀번호를 먼저 넣어 주세요.</div>';return;}
- out.innerHTML='<div class="cres">⏳ 드라이브를 확인하고 있습니다…</div>';if(req.folderId&&NODES[req.folderId]){NODES[req.folderId].loading=true;renderTree();}
+ out.innerHTML='<div class="cres">⏳ 드라이브를 확인하고 있습니다…</div>';if(req.folderId){if(!LOADING)LOADING=req.folderId;if(NODES[req.folderId])NODES[req.folderId].loading=true;renderTree();}
  try{
   const r=await call(req);
   if(!r.found){out.innerHTML=`<div class="cres" style="color:var(--warn)">"${esc(product)}" 폴더가 아직 없습니다.</div>`;return;}
@@ -372,7 +391,7 @@ async function check(opt){
   $('fUrl').value=r.folderUrl||'';
 
  }catch(e){out.innerHTML=`<div class="cres" style="color:var(--warn)">❌ ${e.message}</div>`;}
- finally{Object.values(NODES).forEach(n=>n.loading=false);renderTree();}
+ finally{Object.values(NODES).forEach(n=>n.loading=false);LOADING='';renderTree();}
 }
 /* ───── 크게 보기 ───── */
 let RETAKE=null;
