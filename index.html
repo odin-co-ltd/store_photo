@@ -2,6 +2,9 @@
 <html lang="ko">
 <head>
 <meta charset="utf-8">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>상품 촬영 시안</title>
 <style>
@@ -147,11 +150,17 @@ input[type=text]{width:100%;font-size:20px;padding:12px;border:2px solid var(--l
 .rw button{flex:1;font-size:16px;font-weight:800;padding:12px 4px;border-radius:10px;border:2px solid var(--line);background:var(--card);color:var(--ink)}
 .rw button.go{background:#6a3fb5;border-color:#6a3fb5;color:#fff}
 .rw label{flex:1;display:flex;align-items:center;gap:6px;font-size:15px;padding:8px;border:2px solid var(--line);border-radius:10px;background:var(--card)}
+.ttl{display:flex;align-items:center;justify-content:flex-start;gap:12px;margin:4px 0 12px}
+.ttl h1{margin:0}
+.rl{flex:none;width:48px;height:48px;border-radius:12px;border:2px solid var(--line);background:var(--card);color:var(--blue);display:flex;align-items:center;justify-content:center;cursor:pointer}
+.rl:active{transform:scale(.94)}
+.rl.spin svg{animation:rlspin .8s linear infinite}
+@keyframes rlspin{to{transform:rotate(360deg)}}
 </style>
 </head>
 <body>
 <div class="wrap">
- <h1>상품 촬영</h1>
+ <div class="ttl"><h1>상품 촬영</h1><button type="button" id="reload" class="rl" aria-label="새로고침" title="새로고침 (새 버전 불러오기)"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/></svg></button></div>
  <div id="pinBox" class="pinbox" hidden><label class="t" for="pin">사용 비밀번호</label><input id="pin" type="tel" inputmode="numeric" autocomplete="off" autocorrect="off" spellcheck="false" placeholder="처음 한 번만 입력" style="letter-spacing:4px"></div>
  <div id="target" style="display:none"></div>
  <label class="t" for="pname">1. 상품 이름</label>
@@ -168,7 +177,7 @@ input[type=text]{width:100%;font-size:20px;padding:12px;border:2px solid var(--l
  </div>
  <div class="cc">
   <b>4. 사진 색 맞추기</b>
-  <div class="cres" id="ccInfo">찍은 사진의 색이 실물과 다를 때, 실물 사진이나 회색 카드를 기준으로 색을 맞춥니다.</div>
+  <div class="cres" id="ccInfo">2번·3번 사진(새로 찍은 사진·드라이브 사진)의 색이 실물과 다를 때, 실물 사진이나 회색 카드를 기준으로 색을 맞춥니다.</div>
   <button class="btn" id="ccOpen" type="button">🎨 색 맞추기 열기</button>
  </div>
  <div class="chk">
@@ -201,10 +210,10 @@ input[type=text]{width:100%;font-size:20px;padding:12px;border:2px solid var(--l
  <div class="cs">4. 손으로 조금 더 맞추기</div>
  <div id="cSl"></div>
  <div class="cs">5. 적용</div>
- <div class="rw"><label><input type="radio" name="cTo" value="one" checked> 이 사진만</label><label><input type="radio" name="cTo" value="all"> 찍은 사진 모두</label></div>
- <div class="ch">"찍은 사진 모두"는 같은 조명에서 찍은 사진에만 쓰세요.</div>
+ <div class="rw"><label><input type="radio" name="cTo" value="one" checked> 이 사진만</label><label><input type="radio" name="cTo" value="all"> 2·3번 사진 모두</label></div>
+ <div class="ch">"2·3번 사진 모두"는 같은 조명에서 찍은 사진에만 쓰세요.</div>
  <div class="rw"><button type="button" id="cUndo">원래대로</button><button type="button" class="go" id="cApply">적용하기</button></div>
- <div class="ch">저장할 때 원본은 그대로 올리고, 고친 사진은 이름 끝에 "_색보정"을 붙여 따로 올립니다.</div>
+ <div class="ch">저장할 때 원본은 그대로 두고, 고친 사진은 이름 끝에 "_색보정"을 붙여 따로 올립니다. 드라이브 사진은 원본을 건드리지 않고 "_색보정" 사진만 새로 올립니다.</div>
  <div class="msg" id="cMsg"></div>
 </div></div>
 <div class="foot"><div class="in">
@@ -246,7 +255,7 @@ function chairSVG(yaw,el){
  const col=(k,l)=>{const t=Math.min(1,0.78+0.22*l);return k==='c'?`rgb(${Math.round(92*t)},${Math.round(98*t)},${Math.round(110*t)})`:`rgb(${Math.round(222*t)},${Math.round(160*t)},${Math.round(112*t)})`;};
  return `<svg viewBox="${vb}">${F.map(f=>{const c=col(f.k,f.lit);return `<polygon points="${f.pts.map(p=>p[0].toFixed(1)+','+(-p[1]).toFixed(1)).join(' ')}" fill="${c}" stroke="${c}" stroke-width="2.6" stroke-linejoin="round"/>`;}).join('')}</svg>`;
 }
-const shots={},extras=[],CORR=new Map(); /* CORR: 원본 파일 → 색 보정한 파일 */
+const shots={},extras=[],CORR=new Map(),DFILES={}; /* DFILES: 드라이브에서 받아 온 원본 사진 (파일ID → 파일) */ /* CORR: 원본 파일 → 색 보정한 파일 */
 const g=document.getElementById('grid'),TILES=[];
 DIRS.forEach(([nm,yw,el],i)=>{
  const t=document.createElement('div');t.className='tile';
@@ -268,7 +277,7 @@ let DRIVE_DETS=[];
 function drawDet(){
  document.getElementById('detN').textContent=DRIVE_DETS.length+extras.length;
  const row=document.getElementById('exRow');
- row.innerHTML=DRIVE_DETS.map(d=>`<div class="dt" data-big="${d.id?`https://drive.google.com/thumbnail?id=${d.id}&sz=w2000`:(d.thumb||'')}" data-small="${d.thumb||''}" data-nm="${d.name.replace(/\.[^.]+$/,'')}">${d.thumb?`<img src="${d.thumb}" alt="">`:''}<span class="src">드라이브</span>${d.name.replace(/\.[^.]+$/,'')}</div>`).join('')
+ row.innerHTML=DRIVE_DETS.map(d=>{const cf=DFILES[d.id]&&CORR.get(DFILES[d.id]),cu=cf?URL.createObjectURL(cf):'';return `<div class="dt" data-big="${cu||(d.id?`https://drive.google.com/thumbnail?id=${d.id}&sz=w2000`:(d.thumb||''))}" data-small="${cu||d.thumb||''}" data-nm="${d.name.replace(/\.[^.]+$/,'')}">${cu||d.thumb?`<img src="${cu||d.thumb}" alt="">`:''}<span class="src">드라이브</span>${cf?'<span class="cb">색보정</span>':''}${d.name.replace(/\.[^.]+$/,'')}</div>`;}).join('')
   +extras.map((f,i)=>{const u=URL.createObjectURL(CORR.get(f)||f);return `<div class="dt new" data-big="${u}" data-small="${u}" data-nm="디테일${DRIVE_DETS.length+i+1}"><img src="${u}" alt=""><span class="src">새로 찍음</span>${CORR.has(f)?'<span class="cb">색보정</span>':''}디테일${DRIVE_DETS.length+i+1}</div>`;}).join('');
 }
 document.getElementById('pname').addEventListener('input',upd);
@@ -277,10 +286,10 @@ function upd(withMsg=true){
  document.getElementById('cnt').textContent=n+' / '+DIRS.length;
  document.getElementById('barI').style.width=(n/DIRS.length*100)+'%';
  const name=document.getElementById('pname').value.trim();
- const ok=!!TARGET&&(n+extras.length)>0;
+ const nd=driveCorr().length,ok=!!TARGET&&(n+extras.length+nd)>0;
  document.getElementById('save').disabled=!ok;
- const nc=[...Object.values(shots),...extras].filter(f=>CORR.has(f)).length;
- if(withMsg)document.getElementById('msg').textContent=ok?`저장 예정: 📍 "${TARGET.path[TARGET.path.length-1]}" 폴더에 ${n+extras.length}장${nc?` + 색보정 ${nc}장`:''}`:(!TARGET?'아래 6번에서 사진을 넣을 폴더를 열어 주세요.':'사진을 찍으면 버튼이 켜집니다.');
+ const nc=[...Object.values(shots),...extras].filter(f=>CORR.has(f)).length+nd;
+ if(withMsg)document.getElementById('msg').textContent=ok?`저장 예정: 📍 "${TARGET.path[TARGET.path.length-1]}" 폴더에 ${[n+extras.length?(n+extras.length)+'장':'',nc?`색보정 ${nc}장`:''].filter(Boolean).join(' + ')}`:(!TARGET?'아래 6번에서 사진을 넣을 폴더를 열어 주세요.':'사진을 찍으면 버튼이 켜집니다.');
 }
 /* ───── 드라이브 연결 ───── */
 const API='https://script.google.com/macros/s/AKfycbw0B7IE5YgaeIwfQCaujgTesCTomZYTL1pzyICR5nSepAjvcJuTVlpVdvn6XNZfT_3B/exec';
@@ -335,13 +344,14 @@ $('save').onclick=async()=>{
  if(!PIN){$('pinBox').hidden=false;$('pin').focus();$('msg').textContent='사용 비밀번호를 먼저 넣어 주세요.';return;}
  const jobs=[];
  DIRS.forEach(([nm],i)=>{if(shots[nm]){jobs.push({f:shots[nm],name:fileName(i),nm});if(CORR.has(shots[nm]))jobs.push({f:CORR.get(shots[nm]),name:fileName(i)+'_색보정',nm});}});
+ driveCorr().forEach(o=>jobs.push({f:CORR.get(DFILES[o.id]),name:o.name.replace(/\.[^.]+$/,'')+'_색보정',dc:o.id}));
  extras.forEach((f,i)=>{jobs.push({f,name:'디테일'+(DRIVE_DETS.length+i+1),ex:true});if(CORR.has(f))jobs.push({f:CORR.get(f),name:'디테일'+(DRIVE_DETS.length+i+1)+'_색보정',exc:f});});
  if(!TARGET){$('fb').scrollIntoView({block:'center'});$('msg').textContent='아래 6번에서 사진을 넣을 폴더를 먼저 열어 주세요 (📍 표시된 폴더에 저장됩니다).';return;}
  const tg={into:TARGET.id},okEx=new Set();
  busy=true;$('save').disabled=true;let done=0,fail=[],folderUrl='',savedId='';
  for(const jb of jobs){
   $('msg').innerHTML=`⏳ 저장 ${done+1} / ${jobs.length} : ${jb.name}`;
-  try{const r=await call({action:'upload',product,intoFolderId:tg.into,parentId:'',name:jb.name+'.'+extOf(jb.f),mime:jb.f.type||'image/jpeg',data:await b64(jb.f)});folderUrl=r.folderUrl;savedId=r.folderId;if(r.folderId&&r.folderId!==TARGET.id)fail.push(jb.name+' (⚠ 다른 폴더에 저장됨: '+(r.folderName||'')+' — 앱스크립트 최신 배포 필요)');done++;if(jb.nm)delete shots[jb.nm];if(jb.ex)okEx.add(jb.f);}
+  try{const r=await call({action:'upload',product,intoFolderId:tg.into,parentId:'',name:jb.name+'.'+extOf(jb.f),mime:jb.f.type||'image/jpeg',data:await b64(jb.f)});folderUrl=r.folderUrl;savedId=r.folderId;if(r.folderId&&r.folderId!==TARGET.id)fail.push(jb.name+' (⚠ 다른 폴더에 저장됨: '+(r.folderName||'')+' — 앱스크립트 최신 배포 필요)');done++;if(jb.nm)delete shots[jb.nm];if(jb.ex)okEx.add(jb.f);if(jb.dc)CORR.delete(DFILES[jb.dc]);}
   catch(e){fail.push(jb.name+' ('+e.message+')');if(/비밀번호/.test(e.message))break;}
  }
  /* 저장된 사진은 이 폰 목록에서 빼서 두 번 올라가지 않게 함 (드라이브 사진으로 다시 보임) */
@@ -438,13 +448,15 @@ async function check(opt){
    const k=key(nm),ms=names.filter(n=>key(n)===k).map(n=>fileBy[n]);
    const f=ms.slice().reverse().find(f=>thumbOf(f))||ms[ms.length-1];
    const pic=t.querySelector('.pic');pic.innerHTML='';const old=t.querySelector('.src');if(old)old.remove();
-   if(!f){t.classList.remove('done');delete t.dataset.big;t.querySelector('.retake').hidden=true;return;}
-   t.dataset.big=f.id?`https://drive.google.com/thumbnail?id=${f.id}&sz=w2000`:(f.thumb||'');t.dataset.small=f.thumb||'';t.querySelector('.retake').hidden=!t.dataset.big;
+   if(!f){t.classList.remove('done');delete t.dataset.big;delete t.dataset.fid;t.querySelector('.retake').hidden=true;const cb1=t.querySelector('.cb');if(cb1)cb1.remove();return;}
+   t.dataset.fid=f.id||'';t.dataset.fname=f.name;
+   t.dataset.big=f.id?`https://drive.google.com/thumbnail?id=${f.id}&sz=w2000`:(f.thumb||'');t.dataset.small=f.thumb||'';t.dataset.dbig=t.dataset.big;t.dataset.dsmall=t.dataset.small;t.querySelector('.retake').hidden=!t.dataset.big;
    t.classList.add('done');
    const u=thumbOf(f);
    pic.innerHTML=u?`<img class="th" src="${u}" alt="" onerror="this.outerHTML='<div class=&quot;th nothumb&quot;>사진 있음<br><small>${f.name}</small></div>'">`:`<div class="th nothumb">사진 있음<br><small>${f.name}</small></div>`;
    t.insertAdjacentHTML('beforeend','<span class="src">드라이브</span>');});
   if(!r.version)out.dataset.old='1';
+  setTimeout(refreshThumbs,0);
   const dets=names.filter(n=>!used.has(n)&&key(n).startsWith('디테일'));dets.forEach(n=>used.add(n));
   DRIVE_DETS=dets.map(d=>{const f=fileBy[d];return {...f,thumb:thumbOf(f)};});drawDet();
   const miss=DIRS.filter((_,i)=>!hit[i]).map(d=>d[0]),other=names.filter(n=>!used.has(n));
@@ -476,8 +488,15 @@ $('exRow').addEventListener('click',e=>{const d=e.target.closest('.dt');if(d&&d.
 /* ───── 4. 사진 색 맞추기 ─────
    찍은 사진에서 몇 곳을 누르고, 실물 기준(실물 사진·회색 카드·색 직접)에서 같은 곳의 색을 정하면
    빨강·초록·파랑 세기를 계산해 맞춥니다. 원본은 그대로 두고 고친 사진을 따로 만듭니다. */
-const C={file:null,key:'',mode:'ref',refImg:null,refFile:null,col:'#b8855c',pts:[],wait:null,bef:null,ref:null,sl:{t:0,m:0,b:0,s:0},gain:[1,1,1]};
-const SL=[['t','색온도 (노랑 ↔ 파랑)'],['m','초록 ↔ 자주'],['b','밝기'],['s','채도 (색 진하기)']];
+const C={file:null,key:'',mode:'ref',refImg:null,refFile:null,col:'#b8855c',pts:[],wait:null,bef:null,ref:null,sl:{t:0,m:0,b:0,s:0,h:0,l:0},gain:[1,1,1],haze:[0,0,0]};
+const SL=[['t','색온도 (노랑 ↔ 파랑)'],['m','초록 ↔ 자주'],['b','밝기'],['s','채도 (색 진하기)'],['h','빛번짐 줄이기 (뿌옇게 뜬 느낌)',0,100],['l','반사광·밝은 부분 (− 누르기 / + 살리기)']];
+/* 빛번짐: 사진 전체에 깔린 뿌연 빛(가장 어두운 곳의 밝기)을 빼고, 반사광: 밝은 부분만 따로 누름 */
+let HL=null;function mkHL(){const k=C.sl.l/50;if(!k){HL=null;return;}HL=new Uint8ClampedArray(256);for(let i=0;i<256;i++){const x=i/255,w=x<=0.55?0:Math.pow((x-0.55)/0.45,1.5);HL[i]=Math.round(255*(k<0?x+k*0.45*w*(x-0.35):x+k*0.25*w*(1-x)));}}
+function estHaze(){ /* 원본에서 가장 어두운 0.5% 밝기 = 뿌연 빛의 양 */
+ const d=SRC.data,step=Math.max(1,Math.floor(d.length/4/60000))*4,h=[new Uint32Array(256),new Uint32Array(256),new Uint32Array(256)];let n=0;
+ for(let i=0;i<d.length;i+=step){h[0][d[i]]++;h[1][d[i+1]]++;h[2][d[i+2]]++;n++;}
+ C.haze=h.map(H=>{let a=0;for(let v=0;v<256;v++){a+=H[v];if(a>=n*0.005)return LIN[v];}return 0;});}
+
 const LIN=new Float32Array(256);for(let i=0;i<256;i++){const c=i/255;LIN[i]=c<=0.04045?c/12.92:Math.pow((c+0.055)/1.055,2.4);}
 const GAM=new Uint8ClampedArray(4097);for(let i=0;i<=4096;i++){const c=i/4096;GAM[i]=Math.round(255*(c<=0.0031308?12.92*c:1.055*Math.pow(c,1/2.4)-0.055));}
 const toG=v=>GAM[v<=0?0:v>=1?4096:(v*4096)|0];
@@ -487,7 +506,17 @@ function lab(r,g,b){const R=LIN[r],G=LIN[g],B=LIN[b];
 const dE=(a,b)=>{const p=lab(...a),q=lab(...b);return Math.hypot(p[0]-q[0],p[1]-q[1],p[2]-q[2]);};
 const hex=c=>'#'+c.map(v=>Math.round(v).toString(16).padStart(2,'0')).join('');
 const unhex=h=>[1,3,5].map(i=>parseInt(h.slice(i,i+2),16));
-function photoList(){const L=[];DIRS.forEach(([nm])=>{if(shots[nm])L.push({key:nm,f:shots[nm]});});extras.forEach((f,i)=>L.push({key:'디테일'+(DRIVE_DETS.length+i+1),f}));return L;}
+function photoList(){const L=[];
+ DIRS.forEach(([nm],i)=>{const t=TILES[i];if(shots[nm])L.push({key:nm,f:shots[nm]});else if(t.dataset.fid)L.push({key:nm,id:t.dataset.fid,name:t.dataset.fname,thumb:t.dataset.small||t.dataset.big,f:DFILES[t.dataset.fid]||null,drive:1});});
+ DRIVE_DETS.forEach(d=>{if(d.id)L.push({key:d.name.replace(/\.[^.]+$/,''),id:d.id,name:d.name,thumb:d.thumb,f:DFILES[d.id]||null,drive:1});});
+ extras.forEach((f,i)=>L.push({key:'디테일'+(DRIVE_DETS.length+i+1),f}));return L;}
+/* 드라이브 사진 원본을 받아 옴 (한 번 받으면 기억) */
+async function getFile(o){if(o.f)return o.f;if(DFILES[o.id])return o.f=DFILES[o.id];
+ const r=await call({action:'image',id:o.id});if(!r.data)throw new Error('앱스크립트를 새 버전으로 배포해 주세요 (사진 받아오기 기능)');
+ const bin=atob(r.data),u=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);
+ return o.f=DFILES[o.id]=new File([u],r.name||o.name,{type:r.mime||'image/jpeg'});}
+function driveCorr(){const L=[];DIRS.forEach(([nm],i)=>{const t=TILES[i];if(!shots[nm]&&t.dataset.fid&&DFILES[t.dataset.fid]&&CORR.has(DFILES[t.dataset.fid]))L.push({id:t.dataset.fid,name:t.dataset.fname});});
+ DRIVE_DETS.forEach(d=>{if(d.id&&DFILES[d.id]&&CORR.has(DFILES[d.id]))L.push({id:d.id,name:d.name});});return L;}
 async function loadImg(f,max){const b=await createImageBitmap(f);const sc=Math.min(1,max/Math.max(b.width,b.height));
  const cv=document.createElement('canvas');cv.width=Math.round(b.width*sc);cv.height=Math.round(b.height*sc);cv.getContext('2d').drawImage(b,0,0,cv.width,cv.height);b.close&&b.close();return cv;}
 function sample(cv,x,y){const r=Math.max(2,Math.round(cv.width/150)),d=cv.getContext('2d').getImageData(Math.max(0,x-r),Math.max(0,y-r),r*2+1,r*2+1).data;
@@ -497,13 +526,15 @@ function solve(){ /* 점마다 (찍은 색 → 기준 색)을 가장 잘 맞추�
  const ps=C.pts.filter(p=>target(p));if(!ps.length){C.gain=[1,1,1];return;}
  C.gain=[0,1,2].map(c=>{let a=0,b=0;ps.forEach(p=>{const s=LIN[Math.round(p.s[c])],t=LIN[Math.round(target(p)[c])];a+=s*t;b+=s*s;});return b>0?Math.min(4,Math.max(0.25,a/b)):1;});}
 function mults(){const {t,m,b}=C.sl,e=Math.pow(2,b/50);return [C.gain[0]*(1+t/200)*e,C.gain[1]*(1-m/200)*e,C.gain[2]*(1-t/200)*e];}
+function hazeK(){const [kr,kg,kb]=mults(),k=C.sl.h/100*0.95,h=[C.haze[0]*kr*k,C.haze[1]*kg*k,C.haze[2]*kb*k];return {hz:k>0,h,s:h.map(v=>1/Math.max(0.2,1-v))};}
 function applyTo(src,dst){ /* src·dst: ImageData */
  const [kr,kg,kb]=mults(),sat=1+C.sl.s/100,a=src.data,o=dst.data;
+ const Z=hazeK(),hz=Z.hz,[hr,hg,hb]=Z.h,[sr,sg,sb]=Z.s;mkHL();
  for(let i=0;i<a.length;i+=4){let r=LIN[a[i]]*kr,g=LIN[a[i+1]]*kg,b=LIN[a[i+2]]*kb;
   if(sat!==1){const l=0.2126*r+0.7152*g+0.0722*b;r=l+(r-l)*sat;g=l+(g-l)*sat;b=l+(b-l)*sat;}
-  o[i]=toG(r);o[i+1]=toG(g);o[i+2]=toG(b);o[i+3]=a[i+3];}}
-function fixColor(c){const [kr,kg,kb]=mults(),sat=1+C.sl.s/100;let r=LIN[Math.round(c[0])]*kr,g=LIN[Math.round(c[1])]*kg,b=LIN[Math.round(c[2])]*kb;
- if(sat!==1){const l=0.2126*r+0.7152*g+0.0722*b;r=l+(r-l)*sat;g=l+(g-l)*sat;b=l+(b-l)*sat;}return [toG(r),toG(g),toG(b)];}
+  if(hz){r=(r-hr)*sr;g=(g-hg)*sg;b=(b-hb)*sb;}
+  if(HL){o[i]=HL[toG(r)];o[i+1]=HL[toG(g)];o[i+2]=HL[toG(b)];}else{o[i]=toG(r);o[i+1]=toG(g);o[i+2]=toG(b);}o[i+3]=a[i+3];}}
+function fixColor(c){const one=new ImageData(new Uint8ClampedArray([Math.round(c[0]),Math.round(c[1]),Math.round(c[2]),255]),1,1),o=new ImageData(1,1);applyTo(one,o);return [o.data[0],o.data[1],o.data[2]];}
 let SRC=null,RAF=0;
 function render(){cancelAnimationFrame(RAF);RAF=requestAnimationFrame(()=>{if(!C.bef)return;
  const A=$('cAft'),B=$('cBef');A.width=B.width=C.bef.width;A.height=B.height=C.bef.height;
@@ -533,9 +564,11 @@ function drawMode(){
  if(C.mode==='col'){const set=v=>{if(/^#[0-9a-f]{6}$/i.test(v)){C.col=v.toLowerCase();$('cCol').value=C.col;$('cHex').value=C.col;solve();render();}};$('cCol').oninput=e=>set(e.target.value);$('cHex').oninput=e=>set(e.target.value.trim());}
  solve();render();}
 function drawRef(){const R=$('cRef');if(!C.ref){R.width=R.height=0;return;}R.width=C.ref.width;R.height=C.ref.height;R.getContext('2d').drawImage(C.ref,0,0);drawPts();}
-function drawPick(){const L=photoList();$('cPick').innerHTML=L.map(o=>`<button type="button" data-k="${esc(o.key)}" class="${o.key===C.key?'on':''}"><img src="${URL.createObjectURL(CORR.get(o.f)||o.f)}" alt="">${esc(o.key)}${CORR.has(o.f)?'<br><span style="color:#6a3fb5">색보정</span>':''}</button>`).join('');}
-async function pickPhoto(key){const o=photoList().find(o=>o.key===key);if(!o)return;C.key=key;C.file=o.f;drawPick();
- $('cMsg').textContent='⏳ 사진을 불러오는 중…';C.bef=await loadImg(o.f,1000);SRC=C.bef.getContext('2d').getImageData(0,0,C.bef.width,C.bef.height);$('cMsg').textContent='';render();}
+function drawPick(){const L=photoList();$('cPick').innerHTML=L.map(o=>{const src=o.f?URL.createObjectURL(CORR.get(o.f)||o.f):(o.thumb||'');return `<button type="button" data-k="${esc(o.key)}" class="${o.key===C.key?'on':''}">${src?`<img src="${src}" alt="">`:'<div style="aspect-ratio:1">사진</div>'}${esc(o.key)}${o.drive?'<br><span style="color:var(--ok)">드라이브</span>':''}${o.f&&CORR.has(o.f)?'<br><span style="color:#6a3fb5">색보정</span>':''}</button>`;}).join('');}
+async function pickPhoto(key){const o=photoList().find(o=>o.key===key);if(!o)return;C.key=key;drawPick();
+ $('cMsg').textContent=o.drive&&!o.f?'⏳ 드라이브에서 사진을 받아 오는 중…':'⏳ 사진을 불러오는 중…';
+ try{C.file=await getFile(o);}catch(e){C.file=null;$('cMsg').textContent='❌ '+e.message;return;}if(C.key!==key)return;drawPick();
+ C.bef=await loadImg(C.file,1000);SRC=C.bef.getContext('2d').getImageData(0,0,C.bef.width,C.bef.height);estHaze();$('cMsg').textContent='';render();}
 const rel=(e,el)=>{const r=el.getBoundingClientRect();return [Math.min(1,Math.max(0,(e.clientX-r.left)/r.width)),Math.min(1,Math.max(0,(e.clientY-r.top)/r.height))];};
 $('cShotBox').addEventListener('click',e=>{if(!C.bef)return;const [x,y]=rel(e,$('cShotBox'));
  if(C.wait)C.pts.splice(C.pts.indexOf(C.wait),1);
@@ -546,7 +579,9 @@ $('cRefBox').addEventListener('click',e=>{if(!C.ref||!C.wait)return;const [x,y]=
 $('cPts').addEventListener('click',e=>{const d=e.target.dataset.del;if(d==null)return;const p=C.pts[+d];if(C.wait===p)C.wait=null;C.pts.splice(+d,1);solve();render();});
 $('cMode').addEventListener('click',e=>{const m=e.target.dataset.m;if(!m||m===C.mode)return;C.mode=m;C.pts=[];C.wait=null;drawMode();drawRef();});
 $('cSplit').addEventListener('input',split);
-$('cSl').innerHTML=SL.map(([k,n])=>`<div class="sl"><div><span>${n}</span><b id="cV_${k}">0</b></div><input type="range" min="-50" max="50" value="0" data-k="${k}"></div>`).join('');
+$('cSl').innerHTML=SL.map(([k,n,lo=-50,hi=50])=>`${k==='h'?'<div class="ch" style="margin-top:14px;font-weight:700;color:var(--ink)">빛번짐·반사광</div>':''}<div class="sl"><div><span>${n}</span><b id="cV_${k}">0</b></div><input type="range" min="${lo}" max="${hi}" value="0" data-k="${k}"></div>`).join('')
+ +'<div class="rw"><button type="button" id="cAutoH">빛번짐 자동으로 줄이기</button></div><div class="ch">사진이 뿌옇게 떠 보이면 "빛번짐 줄이기"를 올리고, 의자 표면의 반사가 하얗게 날아가 보이면 "반사광"을 − 쪽으로 내리세요.</div>';
+$('cAutoH').onclick=()=>{const m=Math.max(...C.haze);const v=m<0.004?0:Math.min(100,Math.round(m/0.03*60));C.sl.h=v;const el=document.querySelector('#cSl input[data-k=h]');el.value=v;$('cV_h').textContent=v;render();toast(v?`빛번짐 ${v}으로 맞췄습니다`:'빛번짐이 거의 없는 사진입니다');};
 $('cSl').addEventListener('input',e=>{const k=e.target.dataset.k;if(!k)return;C.sl[k]=+e.target.value;$('cV_'+k).textContent=(C.sl[k]>0?'+':'')+C.sl[k];render();});
 async function fullFix(f){ /* 원본 크기 그대로 고쳐서 JPEG로 (폰 메모리 한도 1,600만 화소) */
  const b=await createImageBitmap(f);const sc=Math.min(1,Math.sqrt(16e6/(b.width*b.height)));
@@ -556,20 +591,36 @@ async function fullFix(f){ /* 원본 크기 그대로 고쳐서 JPEG로 (폰 메
  return new File([bl],(f.name||'photo').replace(/\.[^.]+$/,'')+'_색보정.jpg',{type:'image/jpeg'});}
 $('cApply').onclick=async()=>{if(!C.file)return;const all=document.querySelector('input[name=cTo]:checked').value==='all';
  const L=all?photoList():photoList().filter(o=>o.key===C.key);let k=0;
- for(const o of L){$('cMsg').textContent=`⏳ 색 맞추는 중 ${++k} / ${L.length} : ${o.key}`;try{CORR.set(o.f,await fullFix(o.f));}catch(e){$('cMsg').textContent='❌ '+o.key+': '+e.message;return;}}
+ for(const o of L){$('cMsg').textContent=`⏳ 색 맞추는 중 ${++k} / ${L.length} : ${o.key}`;try{const f=await getFile(o);CORR.set(f,await fullFix(f));}catch(e){$('cMsg').textContent='❌ '+o.key+': '+e.message;return;}}
  refreshThumbs();$('cMsg').textContent=`✅ ${L.length}장 색을 맞췄습니다. 저장할 때 "_색보정" 이름으로 함께 올라갑니다.`;};
 $('cUndo').onclick=()=>{const all=document.querySelector('input[name=cTo]:checked').value==='all';
- (all?photoList():photoList().filter(o=>o.key===C.key)).forEach(o=>CORR.delete(o.f));
- C.pts=[];C.wait=null;C.sl={t:0,m:0,b:0,s:0};document.querySelectorAll('#cSl input').forEach(i=>{i.value=0;$('cV_'+i.dataset.k).textContent='0';});solve();render();refreshThumbs();$('cMsg').textContent='원래 사진으로 되돌렸습니다.';};
+ (all?photoList():photoList().filter(o=>o.key===C.key)).forEach(o=>{if(o.f)CORR.delete(o.f);});
+ C.pts=[];C.wait=null;C.sl={t:0,m:0,b:0,s:0,h:0,l:0};document.querySelectorAll('#cSl input').forEach(i=>{i.value=0;$('cV_'+i.dataset.k).textContent='0';});solve();render();refreshThumbs();$('cMsg').textContent='원래 사진으로 되돌렸습니다.';};
 function refreshThumbs(){
- DIRS.forEach(([nm],i)=>{const f=shots[nm],t=TILES[i];if(!f)return;const u=URL.createObjectURL(CORR.get(f)||f);t.dataset.big=t.dataset.small=u;
+ DIRS.forEach(([nm],i)=>{const t=TILES[i];let f=shots[nm];
+  if(!f){const df=t.dataset.fid&&DFILES[t.dataset.fid];const cb=t.querySelector('.cb');if(cb)cb.remove();
+   if(!(df&&CORR.has(df))&&String(t.dataset.big||'').startsWith('blob:')&&t.dataset.dbig!=null){t.dataset.big=t.dataset.dbig;t.dataset.small=t.dataset.dsmall;const u0=t.dataset.dsmall||t.dataset.dbig;t.querySelector('.pic').innerHTML=u0?`<img class="th" src="${u0}" alt="">`:'';}
+   if(df&&CORR.has(df)){const u=URL.createObjectURL(CORR.get(df));t.dataset.big=t.dataset.small=u;t.querySelector('.pic').innerHTML=`<img class="th" src="${u}" alt="">`;t.insertAdjacentHTML('beforeend','<span class="cb">색보정</span>');}
+   return;}
+  const u=URL.createObjectURL(CORR.get(f)||f);t.dataset.big=t.dataset.small=u;
   t.querySelector('.pic').innerHTML=`<img class="th" src="${u}" alt="">`;const cb=t.querySelector('.cb');if(cb)cb.remove();if(CORR.has(f))t.insertAdjacentHTML('beforeend','<span class="cb">색보정</span>');});
- drawDet();drawPick();upd();
- const n=[...Object.values(shots),...extras].filter(f=>CORR.has(f)).length;$('ccInfo').textContent=n?`색을 맞춘 사진 ${n}장 (저장할 때 원본과 "_색보정" 사진을 함께 올립니다)`:'찍은 사진의 색이 실물과 다를 때, 실물 사진이나 회색 카드를 기준으로 색을 맞춥니다.';}
-$('ccOpen').onclick=()=>{const L=photoList();if(!L.length){toast('먼저 2번이나 3번에서 사진을 찍어 주세요');return;}
+ drawDet();drawPick();upd(!/^[✅❌⏳]/.test($('msg').textContent));
+ const n=[...Object.values(shots),...extras].filter(f=>CORR.has(f)).length+driveCorr().length;$('ccInfo').textContent=n?`색을 맞춘 사진 ${n}장 (저장할 때 원본과 "_색보정" 사진을 함께 올립니다)`:'2번·3번 사진(새로 찍은 사진·드라이브 사진)의 색이 실물과 다를 때, 실물 사진이나 회색 카드를 기준으로 색을 맞춥니다.';}
+$('ccOpen').onclick=()=>{const L=photoList();if(!L.length){toast('2번·3번에 사진이 없습니다. 사진을 찍거나 6번에서 상품 폴더를 열어 주세요');return;}
  $('ced').hidden=false;document.body.style.overflow='hidden';drawMode();drawRef();if(!L.find(o=>o.key===C.key)){C.pts=[];C.wait=null;pickPhoto(L[0].key);}else{drawPick();render();}};
 $('cClose').onclick=()=>{$('ced').hidden=true;document.body.style.overflow='';};
 $('cPick').addEventListener('click',e=>{const b=e.target.closest('button');if(b)pickPhoto(b.dataset.k);});
+
+/* 새로고침: 폰에 남아 있는 예전 화면 대신 GitHub의 최신 화면을 새로 받아 옴 (주소 끝에 시각을 붙여 저장된 화면을 건너뜀) */
+$('reload').onclick=async()=>{
+ const busyPics=Object.keys(shots).length+extras.length;
+ if(busyPics&&!(await new Promise(res=>{let m=$('mdl');if(!m){m=document.createElement('div');m.id='mdl';m.className='mdl';document.body.appendChild(m);}
+   m.innerHTML=`<div class="bx">새로고침<b>아직 저장하지 않은 사진 ${busyPics}장이 사라집니다. 새로고침할까요?</b><div class="bt"><button class="no" type="button">아니요</button><button class="yes" type="button">예</button></div></div>`;m.hidden=false;
+   const d=v=>{m.hidden=true;res(v);};m.querySelector('.no').onclick=()=>d(false);m.querySelector('.yes').onclick=()=>d(true);})))return;
+ $('reload').classList.add('spin');
+ try{if(window.caches){const ks=await caches.keys();await Promise.all(ks.map(k=>caches.delete(k)));}}catch(e){}
+ const u=new URL(location.href);u.searchParams.set('v',Date.now());location.replace(u.toString());
+};
 </script>
 </body>
 </html>
