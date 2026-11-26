@@ -202,7 +202,8 @@ input[type=text]{width:100%;font-size:20px;padding:12px;border:2px solid var(--l
  <div id="cModeBox"></div>
  <div class="cs">3. 같은 곳 누르기</div>
  <div class="ch" id="cHow"></div>
- <div class="cv" id="cShotBox"><canvas id="cAft"></canvas><canvas id="cBef" class="top"></canvas><span class="lb" style="left:6px">고치기 전</span><span class="lb" style="right:6px">고친 후</span><div class="ln" id="cLine"></div></div>
+ <div id="cState" style="margin-top:8px;padding:10px 12px;border-radius:10px;font-size:16px;font-weight:700;line-height:1.5"></div>
+ <div class="cv" id="cShotBox"><canvas id="cAft"></canvas><canvas id="cBef" class="top"></canvas><span class="lb" style="left:6px">고치기 전</span><span class="lb" id="cAftLb" style="right:6px">고친 후</span><div class="ln" id="cLine"></div></div>
  <div class="sl"><div><span>전후 비교 (선 위치)</span></div><input type="range" id="cSplit" min="0" max="100" value="50"></div>
  <div id="cRefWrap"><div class="ch">실물 사진 (같은 곳을 누르세요)</div><div class="cv" id="cRefBox"><canvas id="cRef"></canvas></div></div>
  <div id="cPts"></div>
@@ -500,7 +501,7 @@ function estHaze(){ /* 원본에서 가장 어두운 0.5% 밝기 = 뿌연 빛의
 const LIN=new Float32Array(256);for(let i=0;i<256;i++){const c=i/255;LIN[i]=c<=0.04045?c/12.92:Math.pow((c+0.055)/1.055,2.4);}
 const GAM=new Uint8ClampedArray(4097);for(let i=0;i<=4096;i++){const c=i/4096;GAM[i]=Math.round(255*(c<=0.0031308?12.92*c:1.055*Math.pow(c,1/2.4)-0.055));}
 const toG=v=>GAM[v<=0?0:v>=1?4096:(v*4096)|0];
-function lab(r,g,b){const R=LIN[r],G=LIN[g],B=LIN[b];
+function lab(r,g,b){const q=v=>Math.max(0,Math.min(255,Math.round(v)));const R=LIN[q(r)],G=LIN[q(g)],B=LIN[q(b)];
  let x=(R*0.4124+G*0.3576+B*0.1805)/0.95047,y=R*0.2126+G*0.7152+B*0.0722,z=(R*0.0193+G*0.1192+B*0.9505)/1.08883;
  const f=t=>t>0.008856?Math.cbrt(t):7.787*t+16/116;x=f(x);y=f(y);z=f(z);return [116*y-16,500*(x-y),200*(y-z)];}
 const dE=(a,b)=>{const p=lab(...a),q=lab(...b);return Math.hypot(p[0]-q[0],p[1]-q[1],p[2]-q[2]);};
@@ -552,6 +553,7 @@ function drawPts(){
  if(ok.length){const b=ok.reduce((s,p)=>s+dE(p.s,target(p)),0)/ok.length,a=ok.reduce((s,p)=>s+dE(fixColor(p.s),target(p)),0)/ok.length;
   $('cDe').hidden=false;$('cDe').innerHTML=`<span>평균 색 차이</span><span><s style="color:var(--warn)">${b.toFixed(1)}</s> → <b>${a.toFixed(1)}</b></span>`;}
  else $('cDe').hidden=true;
+ showState(ok.length);
  $('cHow').textContent=C.mode==='ref'?(C.wait?`실물 사진에서 ${C.pts.indexOf(C.wait)+1}번과 같은 곳을 누르세요.`:'위 사진에서 한 곳을 누른 뒤, 아래 실물 사진에서 같은 곳을 누르세요. 2~3곳이면 충분합니다.')
   :C.mode==='gray'?'사진 속 회색 카드나 흰 벽·회색 바닥처럼 원래 색이 없는 곳을 2~3곳 누르세요.':'아래에서 고른 색이어야 하는 곳(예: 원단, 상판)을 누르세요.';}
 function drawMode(){
@@ -621,6 +623,17 @@ $('reload').onclick=async()=>{
  try{if(window.caches){const ks=await caches.keys();await Promise.all(ks.map(k=>caches.delete(k)));}}catch(e){}
  const u=new URL(location.href);u.searchParams.set('v',Date.now());location.replace(u.toString());
 };
+
+/* 지금 사진이 실제로 바뀌었는지 크게 알려 줌 */
+function showState(nOk){
+ const changed=C.gain.some(g=>Math.abs(g-1)>0.005)||Object.values(C.sl).some(v=>v!==0),st=$('cState');
+ $('cAftLb').textContent=changed?'고친 후':'고친 후 (아직 같음)';
+ if(changed){st.style.background='#e6f4ea';st.style.color='#1e6b3a';
+  const k=C.gain,warm=((k[2]/k[0])-1)*100;
+  st.textContent=`✅ 색을 고쳤습니다${nOk?` (누른 곳 ${nOk}군데 기준)`:''}. ${Math.abs(warm)>=1?(warm>0?'노란기를 '+Math.round(warm)+'% 줄임. ':'푸른기를 '+Math.round(-warm)+'% 줄임. '):''}가운데 선을 움직여 비교하세요.`;}
+ else{st.style.background='#fdecea';st.style.color='#b3261e';
+  st.textContent=C.mode==='ref'?(!C.ref?'⚠ 아직 바뀐 것이 없습니다. 먼저 위 "실물 사진 찍기 / 고르기"로 실물 사진을 넣어 주세요.':C.wait?'⚠ 아래 실물 사진에서 같은 곳을 눌러야 색이 바뀝니다.':'⚠ 아직 바뀐 것이 없습니다. 이 사진에서 한 곳을 누르고, 아래 실물 사진에서 같은 곳을 누르세요.')
+   :C.mode==='gray'?'⚠ 아직 바뀐 것이 없습니다. 사진에서 원래 회색·흰색인 곳(회색 카드, 흰 벽)을 눌러 주세요.':'⚠ 아직 바뀐 것이 없습니다. 고른 색이어야 하는 곳을 사진에서 눌러 주세요.';}}
 </script>
 </body>
 </html>
