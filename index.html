@@ -117,7 +117,17 @@ input[type=text]{width:100%;font-size:20px;padding:12px;border:2px solid var(--l
 .tile .cb{position:absolute;left:6px;bottom:30px;font-size:11px;background:#6a3fb5;color:#fff;border-radius:6px;padding:1px 5px;z-index:1}
 .dt .cb{position:absolute;left:6px;top:6px;font-size:11px;background:#6a3fb5;color:#fff;border-radius:6px;padding:1px 5px}
 #ced{position:fixed;inset:0;z-index:200;background:var(--bg);overflow:auto;-webkit-overflow-scrolling:touch}
-#ced[hidden]{display:none}
+#ced[hidden],#szd[hidden]{display:none}
+#szd{position:fixed;inset:0;z-index:200;background:var(--bg);overflow:auto;-webkit-overflow-scrolling:touch}
+#szd .in{max-width:620px;margin:0 auto;padding:12px 16px 40px}
+#szd .hd{display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:var(--bg);padding:8px 0;z-index:3}
+#szd .hd b{font-size:22px}
+#szd .x{font-size:18px;font-weight:800;padding:10px 16px;border-radius:10px;border:2px solid var(--line);background:var(--card);color:var(--ink)}
+.zi{border:2px solid var(--line);border-radius:10px;padding:6px;background:var(--card)}
+.zi canvas{width:100%;height:auto;display:block;border-radius:6px;background:#fff repeating-conic-gradient(#e2e2e2 0 25%,#fff 0 50%) 0 0/16px 16px}
+.zi .nm{font-size:14px;font-weight:700;margin-top:4px;display:flex;justify-content:space-between;gap:4px}
+.zi .wn{font-size:12px;color:var(--warn);line-height:1.4}
+.zi .ok{font-size:12px;color:var(--sub)}
 #ced .in{max-width:520px;margin:0 auto;padding:12px 16px 40px}
 #ced .hd{display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:var(--bg);padding:8px 0;z-index:3}
 #ced .hd b{font-size:22px}
@@ -191,8 +201,33 @@ input[type=text]{width:100%;font-size:20px;padding:12px;border:2px solid var(--l
    <button class="btn" id="fBtn">폴더 확인하기</button>
   </details>
  </div>
+ <div class="cc" style="border-color:#c9d8ef">
+  <b>7. 쇼핑몰 이미지 만들기 (크기 맞춤)</b>
+  <div class="cres" id="szInfo">누끼 PNG를 실제 치수(cm) 비율대로 키우고 줄여, 2000px 바탕에 바닥선을 맞춰 놓고 그림자를 넣습니다.</div>
+  <button class="btn" id="szOpen" type="button" style="background:#1f5fbf">📐 쇼핑몰 이미지 만들기 열기</button>
+ </div>
 </div>
 <div id="viewer" hidden><img id="vImg" alt=""><div id="vCap"></div><div id="vHint">화면을 한 번 더 누르면 돌아갑니다</div><button id="vRetake">📷 다시 찍기</button></div>
+<div id="szd" hidden><div class="in">
+ <div class="hd"><b>📐 쇼핑몰 이미지 만들기</b><button class="x" id="zClose" type="button">닫기</button></div>
+ <div class="cs">1. 상품 실제 치수</div>
+ <div class="rw"><label>높이 <input id="zH" type="number" inputmode="decimal" placeholder="예: 82" style="width:70px;font-size:18px"> cm</label><label>폭 <input id="zW" type="number" inputmode="decimal" placeholder="예: 45" style="width:70px;font-size:18px"> cm</label></div>
+ <div class="ch">높이는 어느 방향에서 찍어도 같아서, 사진마다 높이를 기준으로 크기를 맞춥니다. 윗면 사진만 폭을 기준으로 맞춥니다.</div>
+ <div class="cs">2. 공통 기준 (모든 상품 같은 값으로 두세요)</div>
+ <div class="rw"><label>바탕 높이 = <input id="zRef" type="number" inputmode="decimal" style="width:70px;font-size:18px"> cm</label><label>바탕 <input id="zPx" type="number" inputmode="numeric" style="width:76px;font-size:18px"> px</label></div>
+ <div class="rw"><label>바닥 여백 <input id="zBot" type="number" inputmode="numeric" style="width:60px;font-size:18px"> %</label><label><input type="checkbox" id="zSh" checked> 바닥 그림자</label></div>
+ <div class="sl"><div><span>그림자 진하기</span><b id="zShV">35</b></div><input type="range" id="zShA" min="5" max="80" value="35"></div>
+ <div class="rw"><label><input type="radio" name="zBg" value="png" checked> 투명 배경 (PNG)</label><label><input type="radio" name="zBg" value="jpg"> 흰 배경 (JPG)</label></div>
+ <div class="ch">이 값을 상품마다 바꾸면 상품끼리 크기 비율이 틀어집니다. 한 번 정하면 그대로 두세요 (이 폰에 기억됩니다).</div>
+ <div class="cs">3. 사진 (누끼 PNG)</div>
+ <div class="rw"><button type="button" id="zUse">2·3번 사진 불러오기</button><button type="button" id="zAddB">PNG 파일 더 넣기</button><input type="file" id="zAdd" accept="image/png,image/webp" multiple hidden></div>
+ <div class="msg" id="zMsg"></div>
+ <div id="zList" style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:8px"></div>
+ <div class="cs">4. 저장</div>
+ <div class="ch">📍 저장 폴더에 "원래이름_쇼핑몰.png"(또는 .jpg)로 새로 저장합니다. 원본은 건드리지 않습니다.</div>
+ <div class="rw"><button type="button" class="go" id="zSave" style="background:#1f5fbf;border-color:#1f5fbf">드라이브에 저장</button></div>
+ <div class="msg" id="zMsg2"></div>
+</div></div>
 <div id="ced" hidden><div class="in">
  <div class="hd"><b>🎨 사진 색 맞추기</b><button class="x" id="cClose" type="button">닫기</button></div>
  <div class="cs">1. 고칠 사진</div>
@@ -638,6 +673,64 @@ function showState(nOk){
  else{st.style.background='#fdecea';st.style.color='#b3261e';
   st.textContent=C.mode==='ref'?(!C.ref?'⚠ 아직 바뀐 것이 없습니다. 먼저 위 "실물 사진 찍기 / 고르기"로 실물 사진을 넣어 주세요.':C.wait?'⚠ 아래 실물 사진에서 같은 곳을 눌러야 색이 바뀝니다.':'⚠ 아직 바뀐 것이 없습니다. 이 사진에서 한 곳을 누르고, 아래 실물 사진에서 같은 곳을 누르세요.')
    :C.mode==='gray'?'⚠ 아직 바뀐 것이 없습니다. 사진에서 원래 회색·흰색인 곳(회색 카드, 흰 벽)을 눌러 주세요.':'⚠ 아직 바뀐 것이 없습니다. 고른 색이어야 하는 곳을 사진에서 눌러 주세요.';}}
+
+/* ───── 7. 쇼핑몰 이미지 만들기 (크기 맞춤) ─────
+   누끼 PNG → 여백 자르기 → 실제 cm 비율로 크기 맞춤 → 2000px 바탕 바닥선 정렬 → 바닥 그림자 → 저장 */
+const Z={items:[]};
+const ZK='camSizeCfg';
+(function(){let c={};try{c=JSON.parse(localStorage.getItem(ZK)||'{}');}catch(e){}
+ $('zRef').value=c.ref||110;$('zPx').value=c.px||2000;$('zBot').value=c.bot!=null?c.bot:8;$('zShA').value=c.sha||35;$('zShV').textContent=$('zShA').value;$('zSh').checked=c.sh!==false;
+ if(c.bg==='jpg')document.querySelector('input[name=zBg][value=jpg]').checked=true;})();
+function zCfg(){const c={ref:+$('zRef').value||110,px:Math.min(4000,Math.max(500,+$('zPx').value||2000)),bot:Math.min(30,Math.max(0,+$('zBot').value||0)),sha:+$('zShA').value,sh:$('zSh').checked,bg:document.querySelector('input[name=zBg]:checked').value,H:+$('zH').value||0,W:+$('zW').value||0};
+ try{localStorage.setItem(ZK,JSON.stringify({ref:c.ref,px:c.px,bot:c.bot,sha:c.sha,sh:c.sh,bg:c.bg}));}catch(e){}return c;}
+/* 투명하지 않은 부분의 테두리 상자 찾기 */
+function alphaBox(cv){const w=cv.width,h=cv.height,d=cv.getContext('2d').getImageData(0,0,w,h).data;let x0=w,y0=h,x1=-1,y1=-1,clear=0;
+ for(let y=0;y<h;y++)for(let x=0;x<w;x++){const a=d[(y*w+x)*4+3];if(a<250)clear++;if(a>24){if(x<x0)x0=x;if(x>x1)x1=x;if(y<y0)y0=y;if(y>y1)y1=y;}}
+ return {x:x0,y:y0,w:x1-x0+1,h:y1-y0+1,ok:x1>=0,cut:clear>w*h*0.03};}
+async function zLoad(key,f){const cv=await loadImg(f,1200),bx=alphaBox(cv);const b=await createImageBitmap(f);const k=b.width/cv.width;const W0=b.width,H0=b.height;b.close&&b.close();
+ return {key,f,name:(f.name||key).replace(/\.[^.]+$/,''),cv,box:{x:bx.x*k,y:bx.y*k,w:bx.w*k,h:bx.h*k},bx,k,W0,H0,cut:bx.cut,ok:bx.ok,top:/윗면/.test(key)};}
+/* 한 장을 size px 바탕에 그리기 (src: 그릴 원본, sk: src 픽셀 → 원본 픽셀 배율) */
+function zDraw(it,ctx,size,src,sk,c){
+ const s=size/c.px,ppc=(c.px*(1-c.bot/100)-c.px*0.04)/c.ref*s,base=size*(1-c.bot/100);
+ const realPx=it.top?(c.W||0)*ppc:(c.H||0)*ppc,boxPx=it.top?it.box.w:it.box.h;if(!realPx||!boxPx)return null;
+ const sc=realPx/boxPx,dw=it.box.w*sc,dh=it.box.h*sc,dx=(size-dw)/2,dy=base-dh;
+ if(c.bg==='jpg'){ctx.fillStyle='#fff';ctx.fillRect(0,0,size,size);}
+ if(c.sh&&!it.top){ctx.save();ctx.translate(size/2,base);ctx.scale(1,0.09);const r=dw*0.58,g=ctx.createRadialGradient(0,0,0,0,0,r);
+  g.addColorStop(0,`rgba(0,0,0,${c.sha/100})`);g.addColorStop(0.55,`rgba(0,0,0,${c.sha/250})`);g.addColorStop(1,'rgba(0,0,0,0)');ctx.fillStyle=g;ctx.beginPath();ctx.arc(0,0,r,0,Math.PI*2);ctx.fill();ctx.restore();}
+ ctx.drawImage(src,it.box.x/sk,it.box.y/sk,it.box.w/sk,it.box.h/sk,dx,dy,dw,dh);
+ return {dw,dh,dx,dy,wCm:dw/ppc,hCm:dh/ppc,over:dw>size*0.98||dy<0};}
+function zRender(){const c=zCfg();
+ $('zList').innerHTML=Z.items.map((it,i)=>`<div class="zi"><canvas data-z="${i}" width="400" height="400"></canvas><div class="nm"><span>${esc(it.key)}</span><label style="font-weight:400"><input type="checkbox" data-zon="${i}" ${it.on?'checked':''}> 저장</label></div><div data-zw="${i}"></div></div>`).join('');
+ Z.items.forEach((it,i)=>{const cv=document.querySelector(`canvas[data-z="${i}"]`),ctx=cv.getContext('2d'),w=document.querySelector(`[data-zw="${i}"]`);
+  if(!it.ok||!it.cut){it.on=false;document.querySelector(`[data-zon="${i}"]`).checked=false;w.innerHTML='<div class="wn">⚠ 배경이 투명하지 않습니다. 누끼 PNG를 넣어 주세요.</div>';ctx.drawImage(it.cv,0,0,400,400*it.cv.height/it.cv.width);return;}
+  if(!c.H||(it.top&&!c.W)){w.innerHTML=`<div class="wn">⚠ 위 1번에 ${it.top?'폭':'높이'}(cm)를 넣어 주세요.</div>`;return;}
+  const r=zDraw(it,ctx,400,it.cv,it.k,c);
+  ctx.strokeStyle='rgba(31,95,191,.95)';ctx.lineWidth=2;ctx.setLineDash([8,6]);ctx.beginPath();ctx.moveTo(0,400*(1-c.bot/100)+.5);ctx.lineTo(400,400*(1-c.bot/100)+.5);ctx.stroke();ctx.setLineDash([]);
+  let t=`<div class="ok">바탕 위 크기: 높이 ${r.hCm.toFixed(0)}cm · 폭 ${r.wCm.toFixed(0)}cm</div>`;
+  if(r.over)t+='<div class="wn">⚠ 바탕보다 큽니다. 2번 "바탕 높이"를 키우세요.</div>';
+  if(!it.top&&/정면/.test(it.key)&&!/15|45/.test(it.key)&&c.W&&Math.abs(r.wCm-c.W)/c.W>0.12)t+=`<div class="wn">⚠ 정면 폭이 ${r.wCm.toFixed(0)}cm로 나옵니다 (입력 ${c.W}cm). 치수나 누끼를 확인하세요.</div>`;
+  w.innerHTML=t;});
+ $('zSave').disabled=!Z.items.some(it=>it.on)||!c.H;}
+async function zAddFiles(list){let k=0;for(const o of list){$('zMsg').textContent=`⏳ 사진 불러오는 중 ${++k} / ${list.length} : ${o.key}`;
+  try{const f=o.f||await getFile(o);const it=await zLoad(o.key,CORR.get(f)||f);it.on=true;const di=DIRS.findIndex(d=>d[0]===o.key);it.name=o.name?o.name.replace(/\.[^.]+$/,''):(di>=0&&o.f&&shots[o.key]===o.f?fileName(di):o.key);const j=Z.items.findIndex(x=>x.key===o.key);j>=0?Z.items[j]=it:Z.items.push(it);}catch(e){$('zMsg').textContent='❌ '+o.key+': '+e.message;}}
+ $('zMsg').textContent=Z.items.length?`사진 ${Z.items.length}장. 파란 점선이 바닥선입니다.`:'';zRender();}
+$('zUse').onclick=()=>{const L=photoList();if(!L.length){toast('2번·3번에 사진이 없습니다');return;}zAddFiles(L);};
+$('zAddB').onclick=()=>$('zAdd').click();
+$('zAdd').onchange=()=>{const fs=[...$('zAdd').files];$('zAdd').value='';zAddFiles(fs.map(f=>({key:f.name.replace(/\.[^.]+$/,''),f})));};
+['zH','zW','zRef','zPx','zBot','zShA','zSh'].forEach(id=>$(id).addEventListener('input',()=>{$('zShV').textContent=$('zShA').value;zRender();}));
+document.querySelectorAll('input[name=zBg]').forEach(r=>r.addEventListener('change',zRender));
+$('zList').addEventListener('change',e=>{const i=e.target.dataset.zon;if(i!=null){Z.items[+i].on=e.target.checked;zRender();}});
+$('zSave').onclick=async()=>{const c=zCfg();if(!TARGET){toast('6번에서 저장할 폴더를 먼저 열어 주세요');return;}
+ const L=Z.items.filter(it=>it.on);let k=0,bad=[];$('zSave').disabled=true;
+ for(const it of L){$('zMsg2').textContent=`⏳ 만들고 저장하는 중 ${++k} / ${L.length} : ${it.key}`;
+  try{const b=await createImageBitmap(it.f);const cv=document.createElement('canvas');cv.width=cv.height=c.px;zDraw(it,cv.getContext('2d'),c.px,b,1,c);b.close&&b.close();
+   const mime=c.bg==='jpg'?'image/jpeg':'image/png',bl=await new Promise(ok=>cv.toBlob(ok,mime,0.92));cv.width=cv.height=0;
+   const nm=it.name.replace(/_색보정$/,'')+'_쇼핑몰.'+(c.bg==='jpg'?'jpg':'png');
+   await call({action:'upload',product:$('pname').value.trim()||'상품',intoFolderId:TARGET.id,parentId:'',name:nm,mime,data:await b64(bl)});}
+  catch(e){bad.push(it.key+': '+e.message);}}
+ $('zSave').disabled=false;$('zMsg2').textContent=bad.length?'❌ 일부 실패: '+bad.join(' / '):`✅ ${L.length}장을 📍 "${TARGET.path[TARGET.path.length-1]}" 폴더에 저장했습니다.`;};
+$('szOpen').onclick=()=>{$('szd').hidden=false;document.body.style.overflow='hidden';zRender();};
+$('zClose').onclick=()=>{$('szd').hidden=true;document.body.style.overflow='';};
 </script>
 </body>
 </html>
