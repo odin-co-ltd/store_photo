@@ -455,7 +455,7 @@ $('fb').addEventListener('click',async e=>{
   catch(er){toast('❌ 하위 폴더를 못 불러왔습니다: '+er.message);}
   finally{n.kload=false;renderTree();}
   return;}
- if(n.id===SEL){if(!n.loaded)openFolder(n);return;}
+ if(n.id===SEL){toast(`「${n.name}」 폴더를 새로 불러옵니다`);openFolder(n);return;}   /* 지금 열린 폴더를 다시 누르면 새로고침 */
  if(!(await ask(`「${n.name}」 폴더로 이동하시겠습니까?`)))return;
  openFolder(n);
 });
