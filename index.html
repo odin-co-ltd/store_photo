@@ -114,7 +114,7 @@ input[type=text]{width:100%;font-size:20px;padding:12px;border:2px solid var(--l
 .mdl button.yes{background:var(--blue);border-color:var(--blue);color:#fff}
 .cc{margin-top:16px;background:var(--card);border:2px solid var(--line);border-radius:14px;padding:12px}
 .cc .btn{background:#6a3fb5;color:#fff;margin-top:8px;font-size:18px;padding:12px}
-.tile .cb{position:absolute;left:6px;bottom:30px;font-size:11px;background:#6a3fb5;color:#fff;border-radius:6px;padding:1px 5px;z-index:1}
+.tile .cb{white-space:nowrap;position:absolute;left:6px;bottom:30px;font-size:11px;background:#6a3fb5;color:#fff;border-radius:6px;padding:1px 5px;z-index:1}
 .dt .cb{position:absolute;left:6px;top:6px;font-size:11px;background:#6a3fb5;color:#fff;border-radius:6px;padding:1px 5px}
 #ced{position:fixed;inset:0;z-index:200;background:var(--bg);overflow:auto;-webkit-overflow-scrolling:touch}
 #ced[hidden],#szd[hidden]{display:none}
@@ -190,8 +190,14 @@ input[type=text]{width:100%;font-size:20px;padding:12px;border:2px solid var(--l
   <div class="cres" id="ccInfo">2번·3번 사진(새로 찍은 사진·드라이브 사진)의 색이 실물과 다를 때, 실물 사진이나 회색 카드를 기준으로 색을 맞춥니다.</div>
   <button class="btn" id="ccOpen" type="button">🎨 색 맞추기 열기</button>
  </div>
+ <div class="cc" style="border-color:#e6cfb2">
+  <b>5. 누끼 따기 (포토룸)</b>
+  <div class="cres" id="nkInfo">2·3번 사진을 포토룸으로 보내 배경을 지운 PNG를 만듭니다. 색을 고칠 사진은 4번을 먼저 하세요. 장당 약 0.02달러가 듭니다.</div>
+  <button class="btn" id="nkGo" type="button" style="background:#a0561c">✂ 2·3번 사진 누끼 따기</button>
+  <div class="msg" id="nkMsg"></div>
+ </div>
  <div class="chk">
-  <b>6. 드라이브 저장 확인</b>
+  <b>7. 드라이브 저장 확인</b>
   <div class="cres">폴더 이름을 누르면 안쪽 폴더가 펼쳐지고, 그 폴더의 사진을 위 2번·3번 칸에 보여 줍니다. 새로 찍은 사진은 파랗게 고른 폴더 안에 상품 이름 폴더를 만들어 저장합니다.</div>
   <div id="fb" class="tree"></div>
   <div class="fbtns" id="fbtns"></div>
@@ -202,7 +208,7 @@ input[type=text]{width:100%;font-size:20px;padding:12px;border:2px solid var(--l
   </details>
  </div>
  <div class="cc" style="border-color:#c9d8ef">
-  <b>7. 쇼핑몰 이미지 만들기 (크기 맞춤)</b>
+  <b>8. 쇼핑몰 이미지 만들기 (크기 맞춤)</b>
   <div class="cres" id="szInfo">누끼 PNG를 실제 치수(cm) 비율대로 키우고 줄여, 2000px 바탕에 바닥선을 맞춰 놓고 그림자를 넣습니다.</div>
   <button class="btn" id="szOpen" type="button" style="background:#1f5fbf">📐 쇼핑몰 이미지 만들기 열기</button>
  </div>
@@ -253,7 +259,7 @@ input[type=text]{width:100%;font-size:20px;padding:12px;border:2px solid var(--l
  <div class="msg" id="cMsg"></div>
 </div></div>
 <div class="foot"><div class="in">
- <button class="btn" id="save" disabled>5. 구글 드라이브에 한 번에 저장</button>
+ <button class="btn" id="save" disabled>6. 구글 드라이브에 한 번에 저장</button>
  <div class="msg" id="msg">상품 이름과 사진을 넣으면 버튼이 켜집니다.</div>
 </div></div>
 <script>
@@ -291,7 +297,8 @@ function chairSVG(yaw,el){
  const col=(k,l)=>{const t=Math.min(1,0.78+0.22*l);return k==='c'?`rgb(${Math.round(92*t)},${Math.round(98*t)},${Math.round(110*t)})`:`rgb(${Math.round(222*t)},${Math.round(160*t)},${Math.round(112*t)})`;};
  return `<svg viewBox="${vb}">${F.map(f=>{const c=col(f.k,f.lit);return `<polygon points="${f.pts.map(p=>p[0].toFixed(1)+','+(-p[1]).toFixed(1)).join(' ')}" fill="${c}" stroke="${c}" stroke-width="2.6" stroke-linejoin="round"/>`;}).join('')}</svg>`;
 }
-const shots={},extras=[],CORR=new Map(),DFILES={}; /* DFILES: 드라이브에서 받아 온 원본 사진 (파일ID → 파일) */ /* CORR: 원본 파일 → 색 보정한 파일 */
+const shots={},extras=[],CORR=new Map(),NUKKI=new Map(),DFILES={}; /* NUKKI: 원본 파일 → 누끼 PNG */
+const viewF=f=>NUKKI.get(f)||CORR.get(f)||f,badge=f=>[CORR.has(f)?'색보정':'',NUKKI.has(f)?'누끼':''].filter(Boolean).join('·'),edited=f=>!!f&&(CORR.has(f)||NUKKI.has(f)); /* DFILES: 드라이브에서 받아 온 원본 사진 (파일ID → 파일) */ /* CORR: 원본 파일 → 색 보정한 파일 */
 const g=document.getElementById('grid'),TILES=[];
 DIRS.forEach(([nm,yw,el],i)=>{
  const t=document.createElement('div');t.className='tile';
@@ -299,7 +306,7 @@ DIRS.forEach(([nm,yw,el],i)=>{
  const inp=t.querySelector('input');
  t.addEventListener('click',e=>{if(e.target===inp)return;if(t.dataset.big)openView(t.dataset.big,t.dataset.small,nm,()=>inp.click());else inp.click();});
  inp.addEventListener('change',()=>{const f=inp.files[0];if(!f)return;
-  if(shots[nm])CORR.delete(shots[nm]);shots[nm]=f;const u=URL.createObjectURL(f);t.dataset.big=u;t.dataset.small=u;const o0=t.querySelector('.src');if(o0)o0.remove();
+  if(shots[nm]){CORR.delete(shots[nm]);NUKKI.delete(shots[nm]);}shots[nm]=f;const u=URL.createObjectURL(f);t.dataset.big=u;t.dataset.small=u;const o0=t.querySelector('.src');if(o0)o0.remove();
   t.querySelector('.pic').innerHTML=`<img class="th" src="${u}" alt="">`;
   t.querySelector('.retake').hidden=false;t.classList.add('done');const cb0=t.querySelector('.cb');if(cb0)cb0.remove();upd();});
  TILES.push(t);g.appendChild(t);
@@ -313,8 +320,8 @@ let DRIVE_DETS=[];
 function drawDet(){
  document.getElementById('detN').textContent=DRIVE_DETS.length+extras.length;
  const row=document.getElementById('exRow');
- row.innerHTML=DRIVE_DETS.map(d=>{const cf=DFILES[d.id]&&CORR.get(DFILES[d.id]),cu=cf?URL.createObjectURL(cf):'';return `<div class="dt" data-big="${cu||(d.id?`https://drive.google.com/thumbnail?id=${d.id}&sz=w2000`:(d.thumb||''))}" data-small="${cu||d.thumb||''}" data-nm="${d.name.replace(/\.[^.]+$/,'')}">${cu||d.thumb?`<img src="${cu||d.thumb}" alt="">`:''}<span class="src">드라이브</span>${cf?'<span class="cb">색보정</span>':''}${d.name.replace(/\.[^.]+$/,'')}</div>`;}).join('')
-  +extras.map((f,i)=>{const u=URL.createObjectURL(CORR.get(f)||f);return `<div class="dt new" data-big="${u}" data-small="${u}" data-nm="디테일${DRIVE_DETS.length+i+1}"><img src="${u}" alt=""><span class="src">새로 찍음</span>${CORR.has(f)?'<span class="cb">색보정</span>':''}디테일${DRIVE_DETS.length+i+1}</div>`;}).join('');
+ row.innerHTML=DRIVE_DETS.map(d=>{const df0=DFILES[d.id],cf=edited(df0)?viewF(df0):null,cu=cf?URL.createObjectURL(cf):'';return `<div class="dt" data-big="${cu||(d.id?`https://drive.google.com/thumbnail?id=${d.id}&sz=w2000`:(d.thumb||''))}" data-small="${cu||d.thumb||''}" data-nm="${d.name.replace(/\.[^.]+$/,'')}">${cu||d.thumb?`<img src="${cu||d.thumb}" alt="">`:''}<span class="src">드라이브</span>${cf?`<span class="cb">${badge(df0)}</span>`:''}${d.name.replace(/\.[^.]+$/,'')}</div>`;}).join('')
+  +extras.map((f,i)=>{const u=URL.createObjectURL(viewF(f));return `<div class="dt new" data-big="${u}" data-small="${u}" data-nm="디테일${DRIVE_DETS.length+i+1}"><img src="${u}" alt=""><span class="src">새로 찍음</span>${edited(f)?`<span class="cb">${badge(f)}</span>`:''}디테일${DRIVE_DETS.length+i+1}</div>`;}).join('');
 }
 document.getElementById('pname').addEventListener('input',upd);
 function upd(withMsg=true){
@@ -322,10 +329,10 @@ function upd(withMsg=true){
  document.getElementById('cnt').textContent=n+' / '+DIRS.length;
  document.getElementById('barI').style.width=(n/DIRS.length*100)+'%';
  const name=document.getElementById('pname').value.trim();
- const nd=driveCorr().length,ok=!!TARGET&&(n+extras.length+nd)>0;
+ const nd=driveCorr().length+driveNk().length,ok=!!TARGET&&(n+extras.length+nd)>0;
  document.getElementById('save').disabled=!ok;
- const nc=[...Object.values(shots),...extras].filter(f=>CORR.has(f)).length+nd;
- if(withMsg)document.getElementById('msg').textContent=ok?`저장 예정: 📍 "${TARGET.path[TARGET.path.length-1]}" 폴더에 ${[n+extras.length?(n+extras.length)+'장':'',nc?`색보정 ${nc}장`:''].filter(Boolean).join(' + ')}`:(!TARGET?'아래 6번에서 사진을 넣을 폴더를 열어 주세요.':'사진을 찍으면 버튼이 켜집니다.');
+ const nc=[...Object.values(shots),...extras].reduce((a,f)=>a+(CORR.has(f)?1:0)+(NUKKI.has(f)?1:0),0)+nd;
+ if(withMsg)document.getElementById('msg').textContent=ok?`저장 예정: 📍 "${TARGET.path[TARGET.path.length-1]}" 폴더에 ${[n+extras.length?(n+extras.length)+'장':'',nc?`색보정·누끼 ${nc}장`:''].filter(Boolean).join(' + ')}`:(!TARGET?'아래 7번에서 사진을 넣을 폴더를 열어 주세요.':'사진을 찍으면 버튼이 켜집니다.');
 }
 /* ───── 드라이브 연결 ───── */
 const API='https://script.google.com/macros/s/AKfycbw0B7IE5YgaeIwfQCaujgTesCTomZYTL1pzyICR5nSepAjvcJuTVlpVdvn6XNZfT_3B/exec';
@@ -355,10 +362,10 @@ function setTarget(t){TARGET=t;try{t?localStorage.setItem('camTarget',JSON.strin
 function showWhere(){
  const b=$('target');
  if(TARGET){b.className='target ok';b.innerHTML=`📌 사진 저장 폴더 (고정)<br><b>${TARGET.path.map(esc).join(' › ')}</b><br><button id="unpin" type="button">고정 풀기</button>`;$('unpin').onclick=()=>setTarget(null);}
- else{b.className='target';b.innerHTML='⚠ 저장할 폴더가 아직 고정되지 않았습니다.<br>아래 6번에서 폴더를 열고 <b>📌 이 폴더에 저장</b>을 누르거나, 상품 이름을 적고 <b>＋ 새 상품 폴더 만들기</b>를 누르세요.';}
+ else{b.className='target';b.innerHTML='⚠ 저장할 폴더가 아직 고정되지 않았습니다.<br>아래 7번에서 폴더를 열고 <b>📌 이 폴더에 저장</b>을 누르거나, 상품 이름을 적고 <b>＋ 새 상품 폴더 만들기</b>를 누르세요.';}
  $('where').textContent='';
 }
-/* 6번 폴더 칸 아래 버튼: 지금 열어 둔 폴더를 고정 / 그 안에 새 상품 폴더 */
+/* 7번 폴더 칸 아래 버튼: 지금 열어 둔 폴더를 고정 / 그 안에 새 상품 폴더 */
 function drawFolderBtns(){
  const box=$('fbtns');if(!box)return;const c=curFolder(),n=$('pname').value.trim();
  const pinned=TARGET&&TARGET.id===c.id;
@@ -379,15 +386,16 @@ $('save').onclick=async()=>{
  const product=$('pname').value.trim();
  if(!PIN){$('pinBox').hidden=false;$('pin').focus();$('msg').textContent='사용 비밀번호를 먼저 넣어 주세요.';return;}
  const jobs=[];
- DIRS.forEach(([nm],i)=>{if(shots[nm]){jobs.push({f:shots[nm],name:fileName(i),nm});if(CORR.has(shots[nm]))jobs.push({f:CORR.get(shots[nm]),name:fileName(i)+'_색보정',nm});}});
+ DIRS.forEach(([nm],i)=>{if(shots[nm]){jobs.push({f:shots[nm],name:fileName(i),nm});if(CORR.has(shots[nm]))jobs.push({f:CORR.get(shots[nm]),name:fileName(i)+'_색보정',nm});if(NUKKI.has(shots[nm]))jobs.push({f:NUKKI.get(shots[nm]),name:fileName(i)+'_누끼',nm});}});
+ driveNk().forEach(o=>jobs.push({f:NUKKI.get(DFILES[o.id]),name:o.name.replace(/\.[^.]+$/,'')+'_누끼',dn:o.id}));
  driveCorr().forEach(o=>jobs.push({f:CORR.get(DFILES[o.id]),name:o.name.replace(/\.[^.]+$/,'')+'_색보정',dc:o.id}));
- extras.forEach((f,i)=>{jobs.push({f,name:'디테일'+(DRIVE_DETS.length+i+1),ex:true});if(CORR.has(f))jobs.push({f:CORR.get(f),name:'디테일'+(DRIVE_DETS.length+i+1)+'_색보정',exc:f});});
- if(!TARGET){$('fb').scrollIntoView({block:'center'});$('msg').textContent='아래 6번에서 사진을 넣을 폴더를 먼저 열어 주세요 (📍 표시된 폴더에 저장됩니다).';return;}
+ extras.forEach((f,i)=>{jobs.push({f,name:'디테일'+(DRIVE_DETS.length+i+1),ex:true});if(CORR.has(f))jobs.push({f:CORR.get(f),name:'디테일'+(DRIVE_DETS.length+i+1)+'_색보정',exc:f});if(NUKKI.has(f))jobs.push({f:NUKKI.get(f),name:'디테일'+(DRIVE_DETS.length+i+1)+'_누끼',exc:f});});
+ if(!TARGET){$('fb').scrollIntoView({block:'center'});$('msg').textContent='아래 7번에서 사진을 넣을 폴더를 먼저 열어 주세요 (📍 표시된 폴더에 저장됩니다).';return;}
  const tg={into:TARGET.id},okEx=new Set();
  busy=true;$('save').disabled=true;let done=0,fail=[],folderUrl='',savedId='';
  for(const jb of jobs){
   $('msg').innerHTML=`⏳ 저장 ${done+1} / ${jobs.length} : ${jb.name}`;
-  try{const r=await call({action:'upload',product,intoFolderId:tg.into,parentId:'',name:jb.name+'.'+extOf(jb.f),mime:jb.f.type||'image/jpeg',data:await b64(jb.f)});folderUrl=r.folderUrl;savedId=r.folderId;if(r.folderId&&r.folderId!==TARGET.id)fail.push(jb.name+' (⚠ 다른 폴더에 저장됨: '+(r.folderName||'')+' — 앱스크립트 최신 배포 필요)');done++;if(jb.nm)delete shots[jb.nm];if(jb.ex)okEx.add(jb.f);if(jb.dc)CORR.delete(DFILES[jb.dc]);}
+  try{const r=await call({action:'upload',product,intoFolderId:tg.into,parentId:'',name:jb.name+'.'+extOf(jb.f),mime:jb.f.type||'image/jpeg',data:await b64(jb.f)});folderUrl=r.folderUrl;savedId=r.folderId;if(r.folderId&&r.folderId!==TARGET.id)fail.push(jb.name+' (⚠ 다른 폴더에 저장됨: '+(r.folderName||'')+' — 앱스크립트 최신 배포 필요)');done++;if(jb.nm)delete shots[jb.nm];if(jb.ex)okEx.add(jb.f);if(jb.dc)CORR.delete(DFILES[jb.dc]);if(jb.dn)NUKKI.delete(DFILES[jb.dn]);}
   catch(e){fail.push(jb.name+' ('+e.message+')');if(/비밀번호/.test(e.message))break;}
  }
  /* 저장된 사진은 이 폰 목록에서 빼서 두 번 올라가지 않게 함 (드라이브 사진으로 다시 보임) */
@@ -431,8 +439,8 @@ $('fb').addEventListener('click',async e=>{
 });
 async function openFolder(n){LOADING=n.id;renderTree();try{await check({folderId:n.id});}finally{LOADING='';renderTree();}}
 /* 큰 글씨 확인 창 (예 / 아니요) */
-function ask(msg){return new Promise(res=>{let m=$('mdl');if(!m){m=document.createElement('div');m.id='mdl';m.className='mdl';document.body.appendChild(m);}
- m.innerHTML=`<div class="bx">폴더 이동<b>${esc(msg)}</b><div class="bt"><button class="no" type="button">아니요</button><button class="yes" type="button">예, 이동</button></div></div>`;m.hidden=false;
+function ask(msg,ti='폴더 이동',yb='예, 이동'){return new Promise(res=>{let m=$('mdl');if(!m){m=document.createElement('div');m.id='mdl';m.className='mdl';document.body.appendChild(m);}
+ m.innerHTML=`<div class="bx">${esc(ti)}<b>${esc(msg)}</b><div class="bt"><button class="no" type="button">아니요</button><button class="yes" type="button">${esc(yb)}</button></div></div>`;m.hidden=false;
  const done=v=>{m.hidden=true;res(v);};m.querySelector('.no').onclick=()=>done(false);m.querySelector('.yes').onclick=()=>done(true);m.onclick=ev=>{if(ev.target===m)done(false);};});}
 
 
@@ -640,14 +648,14 @@ $('cUndo').onclick=()=>{const all=document.querySelector('input[name=cTo]:checke
 function refreshThumbs(){
  DIRS.forEach(([nm],i)=>{const t=TILES[i];let f=shots[nm];
   if(!f){const df=t.dataset.fid&&DFILES[t.dataset.fid];const cb=t.querySelector('.cb');if(cb)cb.remove();
-   if(!(df&&CORR.has(df))&&String(t.dataset.big||'').startsWith('blob:')&&t.dataset.dbig!=null){t.dataset.big=t.dataset.dbig;t.dataset.small=t.dataset.dsmall;const u0=t.dataset.dsmall||t.dataset.dbig;t.querySelector('.pic').innerHTML=u0?`<img class="th" src="${u0}" alt="">`:'';}
-   if(df&&CORR.has(df)){const u=URL.createObjectURL(CORR.get(df));t.dataset.big=t.dataset.small=u;t.querySelector('.pic').innerHTML=`<img class="th" src="${u}" alt="">`;t.insertAdjacentHTML('beforeend','<span class="cb">색보정</span>');}
+   if(!edited(df)&&String(t.dataset.big||'').startsWith('blob:')&&t.dataset.dbig!=null){t.dataset.big=t.dataset.dbig;t.dataset.small=t.dataset.dsmall;const u0=t.dataset.dsmall||t.dataset.dbig;t.querySelector('.pic').innerHTML=u0?`<img class="th" src="${u0}" alt="">`:'';}
+   if(edited(df)){const u=URL.createObjectURL(viewF(df));t.dataset.big=t.dataset.small=u;t.querySelector('.pic').innerHTML=`<img class="th" src="${u}" alt="">`;t.insertAdjacentHTML('beforeend',`<span class="cb">${badge(df)}</span>`);}
    return;}
-  const u=URL.createObjectURL(CORR.get(f)||f);t.dataset.big=t.dataset.small=u;
-  t.querySelector('.pic').innerHTML=`<img class="th" src="${u}" alt="">`;const cb=t.querySelector('.cb');if(cb)cb.remove();if(CORR.has(f))t.insertAdjacentHTML('beforeend','<span class="cb">색보정</span>');});
+  const u=URL.createObjectURL(viewF(f));t.dataset.big=t.dataset.small=u;
+  t.querySelector('.pic').innerHTML=`<img class="th" src="${u}" alt="">`;const cb=t.querySelector('.cb');if(cb)cb.remove();if(edited(f))t.insertAdjacentHTML('beforeend',`<span class="cb">${badge(f)}</span>`);});
  drawDet();drawPick();upd(!/^[✅❌⏳]/.test($('msg').textContent));
  const n=[...Object.values(shots),...extras].filter(f=>CORR.has(f)).length+driveCorr().length;$('ccInfo').textContent=n?`색을 맞춘 사진 ${n}장 (저장할 때 원본과 "_색보정" 사진을 함께 올립니다)`:'2번·3번 사진(새로 찍은 사진·드라이브 사진)의 색이 실물과 다를 때, 실물 사진이나 회색 카드를 기준으로 색을 맞춥니다.';}
-$('ccOpen').onclick=()=>{const L=photoList();if(!L.length){toast('2번·3번에 사진이 없습니다. 사진을 찍거나 6번에서 상품 폴더를 열어 주세요');return;}
+$('ccOpen').onclick=()=>{const L=photoList();if(!L.length){toast('2번·3번에 사진이 없습니다. 사진을 찍거나 7번에서 상품 폴더를 열어 주세요');return;}
  $('ced').hidden=false;document.body.style.overflow='hidden';drawMode();drawRef();if(!L.find(o=>o.key===C.key)){C.pts=[];C.wait=null;pickPhoto(L[0].key);}else{drawPick();render();}};
 $('cClose').onclick=()=>{$('ced').hidden=true;document.body.style.overflow='';};
 $('cPick').addEventListener('click',e=>{const b=e.target.closest('button');if(b)pickPhoto(b.dataset.k);});
@@ -674,7 +682,7 @@ function showState(nOk){
   st.textContent=C.mode==='ref'?(!C.ref?'⚠ 아직 바뀐 것이 없습니다. 먼저 위 "실물 사진 찍기 / 고르기"로 실물 사진을 넣어 주세요.':C.wait?'⚠ 아래 실물 사진에서 같은 곳을 눌러야 색이 바뀝니다.':'⚠ 아직 바뀐 것이 없습니다. 이 사진에서 한 곳을 누르고, 아래 실물 사진에서 같은 곳을 누르세요.')
    :C.mode==='gray'?'⚠ 아직 바뀐 것이 없습니다. 사진에서 원래 회색·흰색인 곳(회색 카드, 흰 벽)을 눌러 주세요.':'⚠ 아직 바뀐 것이 없습니다. 고른 색이어야 하는 곳을 사진에서 눌러 주세요.';}}
 
-/* ───── 7. 쇼핑몰 이미지 만들기 (크기 맞춤) ─────
+/* ───── 8. 쇼핑몰 이미지 만들기 (크기 맞춤) ─────
    누끼 PNG → 여백 자르기 → 실제 cm 비율로 크기 맞춤 → 2000px 바탕 바닥선 정렬 → 바닥 그림자 → 저장 */
 const Z={items:[]};
 const ZK='camSizeCfg';
@@ -712,7 +720,7 @@ function zRender(){const c=zCfg();
   w.innerHTML=t;});
  $('zSave').disabled=!Z.items.some(it=>it.on)||!c.H;}
 async function zAddFiles(list){let k=0;for(const o of list){$('zMsg').textContent=`⏳ 사진 불러오는 중 ${++k} / ${list.length} : ${o.key}`;
-  try{const f=o.f||await getFile(o);const it=await zLoad(o.key,CORR.get(f)||f);it.on=true;const di=DIRS.findIndex(d=>d[0]===o.key);it.name=o.name?o.name.replace(/\.[^.]+$/,''):(di>=0&&o.f&&shots[o.key]===o.f?fileName(di):o.key);const j=Z.items.findIndex(x=>x.key===o.key);j>=0?Z.items[j]=it:Z.items.push(it);}catch(e){$('zMsg').textContent='❌ '+o.key+': '+e.message;}}
+  try{const f=o.f||await getFile(o);const it=await zLoad(o.key,viewF(f));it.on=true;const di=DIRS.findIndex(d=>d[0]===o.key);it.name=o.name?o.name.replace(/\.[^.]+$/,''):(di>=0&&o.f&&shots[o.key]===o.f?fileName(di):o.key);const j=Z.items.findIndex(x=>x.key===o.key);j>=0?Z.items[j]=it:Z.items.push(it);}catch(e){$('zMsg').textContent='❌ '+o.key+': '+e.message;}}
  $('zMsg').textContent=Z.items.length?`사진 ${Z.items.length}장. 파란 점선이 바닥선입니다.`:'';zRender();}
 $('zUse').onclick=()=>{const L=photoList();if(!L.length){toast('2번·3번에 사진이 없습니다');return;}zAddFiles(L);};
 $('zAddB').onclick=()=>$('zAdd').click();
@@ -720,7 +728,7 @@ $('zAdd').onchange=()=>{const fs=[...$('zAdd').files];$('zAdd').value='';zAddFil
 ['zH','zW','zRef','zPx','zBot','zShA','zSh'].forEach(id=>$(id).addEventListener('input',()=>{$('zShV').textContent=$('zShA').value;zRender();}));
 document.querySelectorAll('input[name=zBg]').forEach(r=>r.addEventListener('change',zRender));
 $('zList').addEventListener('change',e=>{const i=e.target.dataset.zon;if(i!=null){Z.items[+i].on=e.target.checked;zRender();}});
-$('zSave').onclick=async()=>{const c=zCfg();if(!TARGET){toast('6번에서 저장할 폴더를 먼저 열어 주세요');return;}
+$('zSave').onclick=async()=>{const c=zCfg();if(!TARGET){toast('7번에서 저장할 폴더를 먼저 열어 주세요');return;}
  const L=Z.items.filter(it=>it.on);let k=0,bad=[];$('zSave').disabled=true;
  for(const it of L){$('zMsg2').textContent=`⏳ 만들고 저장하는 중 ${++k} / ${L.length} : ${it.key}`;
   try{const b=await createImageBitmap(it.f);const cv=document.createElement('canvas');cv.width=cv.height=c.px;zDraw(it,cv.getContext('2d'),c.px,b,1,c);b.close&&b.close();
@@ -731,6 +739,30 @@ $('zSave').onclick=async()=>{const c=zCfg();if(!TARGET){toast('6번에서 저장
  $('zSave').disabled=false;$('zMsg2').textContent=bad.length?'❌ 일부 실패: '+bad.join(' / '):`✅ ${L.length}장을 📍 "${TARGET.path[TARGET.path.length-1]}" 폴더에 저장했습니다.`;};
 $('szOpen').onclick=()=>{$('szd').hidden=false;document.body.style.overflow='hidden';zRender();};
 $('zClose').onclick=()=>{$('szd').hidden=true;document.body.style.overflow='';};
+/* ───── 5. 누끼 따기 (포토룸) ─────
+   사진을 앱스크립트를 거쳐 포토룸에 보내고(열쇠는 앱스크립트에만 있음), 배경을 지운 PNG를 받아 둡니다.
+   저장(6번)할 때 원본은 그대로 두고 "_누끼.png"로 따로 올립니다. */
+function driveNk(){const L=[];DIRS.forEach(([nm],i)=>{const t=TILES[i];if(!shots[nm]&&t.dataset.fid&&DFILES[t.dataset.fid]&&NUKKI.has(DFILES[t.dataset.fid]))L.push({id:t.dataset.fid,name:t.dataset.fname});});
+ DRIVE_DETS.forEach(d=>{if(d.id&&DFILES[d.id]&&NUKKI.has(DFILES[d.id]))L.push({id:d.id,name:d.name});});return L;}
+async function forSend(f){ /* 포토룸에 보낼 사진: 긴 쪽 4000px 이하 JPEG로 (용량·시간 절약) */
+ const b=await createImageBitmap(f),sc=Math.min(1,4000/Math.max(b.width,b.height)),cv=document.createElement('canvas');
+ cv.width=Math.round(b.width*sc);cv.height=Math.round(b.height*sc);const x=cv.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,cv.width,cv.height);x.drawImage(b,0,0,cv.width,cv.height);b.close&&b.close();
+ const bl=await new Promise(ok=>cv.toBlob(ok,'image/jpeg',0.92));cv.width=cv.height=0;return bl;}
+$('nkGo').onclick=async()=>{
+ if(!PIN){toast('사용 비밀번호를 먼저 넣어 주세요');return;}
+ const all=photoList();if(!all.length){toast('2번·3번에 사진이 없습니다');return;}
+ const L=all.filter(o=>!(o.f&&NUKKI.has(o.f)));if(!L.length){toast('모든 사진이 이미 누끼 되어 있습니다');return;}
+ if(!(await ask(`${L.length}장을 포토룸으로 보내 누끼를 땁니다. 장당 약 0.02달러, 모두 약 ${(L.length*0.02).toFixed(2)}달러가 듭니다.`,'누끼 따기','예, 진행')))return;
+ $('nkGo').disabled=true;let k=0,ok=0,bad=[],cnt=0;
+ for(const o of L){$('nkMsg').textContent=`⏳ 누끼 따는 중 ${++k} / ${L.length} : ${o.key}`;
+  try{const f=await getFile(o);const r=await call({action:'nukki',mime:'image/jpeg',data:await b64(await forSend(CORR.get(f)||f))});
+   if(!r.data)throw new Error(r.error||'앱스크립트를 새 버전으로 배포해 주세요 (누끼 기능)');
+   const bin=atob(r.data),u=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);
+   NUKKI.set(f,new File([u],(o.name||o.key).replace(/\.[^.]+$/,'')+'_누끼.png',{type:'image/png'}));ok++;cnt=r.monthCount||cnt;}
+  catch(e){bad.push(o.key+': '+e.message);if(/PHOTOROOM_API_KEY|새 버전|402|401|403/.test(e.message))break;}}
+ $('nkGo').disabled=false;refreshThumbs();
+ $('nkMsg').textContent=(ok?`✅ ${ok}장 누끼 완료. 6번 저장 때 "_누끼.png"로 함께 올라갑니다.`:'')+(cnt?` (이번 달 포토룸 사용 ${cnt}장)`:'')+(bad.length?` ❌ 실패: ${bad.join(' / ')}`:'');
+ $('nkInfo').textContent=`누끼 된 사진 ${NUKKI.size}장. 2·3번 칸에 "누끼" 표시가 붙습니다.`;};
 </script>
 </body>
 </html>
