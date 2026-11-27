@@ -24,6 +24,13 @@ input[type=text]{width:100%;font-size:20px;padding:12px;border:2px solid var(--l
 .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px}
 .tile{position:relative;background:var(--card);border:2px solid var(--line);border-radius:16px;padding:8px 4px 8px;text-align:center;cursor:pointer}
 .tile.done{border-color:var(--ok)}
+.tile .sv{display:block;margin:6px auto 0;min-height:36px;width:92%;border-radius:10px;border:2px solid var(--ok);background:#e6f4ea;color:#1e6b3a;font-size:15px;font-weight:800}
+.tile .sv[hidden]{display:none}
+.tile.skip{border-color:var(--line);border-style:dashed}
+.tile.skip .th{opacity:.35}
+.tile.skip .sv{border-color:var(--warn);background:#fdecea;color:var(--warn)}
+.selrow{display:flex;gap:8px;margin-top:8px}
+.selrow button{flex:1;font-size:15px;font-weight:700;padding:10px 4px;border-radius:10px;border:2px solid var(--line);background:var(--card);color:var(--ink)}
 .tile .no{position:absolute;left:8px;top:4px;font-size:14px;font-weight:800;color:var(--sub)}
 .tile .ck{position:absolute;right:8px;top:4px;color:var(--ok);font-size:22px;font-weight:800;display:none}
 .tile.done .ck{display:block}
@@ -179,6 +186,7 @@ input[type=text]{width:100%;font-size:20px;padding:12px;border:2px solid var(--l
  <div class="prog">2. 방향별 촬영 <span id="cnt">0 / 9</span></div>
  <div class="bar"><i id="barI"></i></div>
  <div class="grid" id="grid"></div>
+ <div class="selrow" id="selRow" hidden><button type="button" id="selAll">모두 저장 선택</button><button type="button" id="selNone">모두 저장 안 함</button></div>
  <div class="extra">
   <b>3. 디테일 사진 (<span id="detN">0</span>장)</b>
   <div class="row" id="exRow"></div>
@@ -221,12 +229,12 @@ input[type=text]{width:100%;font-size:20px;padding:12px;border:2px solid var(--l
  <div class="ch">높이는 어느 방향에서 찍어도 같아서, 사진마다 높이를 기준으로 크기를 맞춥니다. 윗면 사진만 폭을 기준으로 맞춥니다.</div>
  <div class="cs">2. 공통 기준 (모든 상품 같은 값으로 두세요)</div>
  <div class="rw"><label>바탕 높이 = <input id="zRef" type="number" inputmode="decimal" style="width:70px;font-size:18px"> cm</label><label>바탕 <input id="zPx" type="number" inputmode="numeric" style="width:76px;font-size:18px"> px</label></div>
- <div class="rw"><label>바닥 여백 <input id="zBot" type="number" inputmode="numeric" style="width:60px;font-size:18px"> %</label><label><input type="checkbox" id="zSh" checked> 바닥 그림자</label></div>
- <div class="sl"><div><span>그림자 진하기</span><b id="zShV">35</b></div><input type="range" id="zShA" min="5" max="80" value="35"></div>
+ <div class="rw"><label>바닥 여백 <input id="zBot" type="number" inputmode="numeric" style="width:60px;font-size:18px"> %</label></div>
+ <div class="sl"><div><span>바닥 그림자 진하기 (0 = 그림자 없음)</span><b id="zShV">35</b></div><input type="range" id="zShA" min="0" max="80" value="35"></div>
  <div class="rw"><label><input type="radio" name="zBg" value="png" checked> 투명 배경 (PNG)</label><label><input type="radio" name="zBg" value="jpg"> 흰 배경 (JPG)</label></div>
  <div class="ch">이 값을 상품마다 바꾸면 상품끼리 크기 비율이 틀어집니다. 한 번 정하면 그대로 두세요 (이 폰에 기억됩니다).</div>
  <div class="cs">3. 사진 (누끼 PNG)</div>
- <div class="rw"><button type="button" id="zUse">2·3번 사진 불러오기</button><button type="button" id="zAddB">PNG 파일 더 넣기</button><input type="file" id="zAdd" accept="image/png,image/webp" multiple hidden></div>
+ <div class="rw"><button type="button" id="zUse">2번 사진 불러오기</button><button type="button" id="zAddB">PNG 파일 더 넣기</button><input type="file" id="zAdd" accept="image/png,image/webp" multiple hidden></div>
  <div class="msg" id="zMsg"></div>
  <div id="zList" style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:8px"></div>
  <div class="cs">4. 저장</div>
@@ -297,20 +305,26 @@ function chairSVG(yaw,el){
  const col=(k,l)=>{const t=Math.min(1,0.78+0.22*l);return k==='c'?`rgb(${Math.round(92*t)},${Math.round(98*t)},${Math.round(110*t)})`:`rgb(${Math.round(222*t)},${Math.round(160*t)},${Math.round(112*t)})`;};
  return `<svg viewBox="${vb}">${F.map(f=>{const c=col(f.k,f.lit);return `<polygon points="${f.pts.map(p=>p[0].toFixed(1)+','+(-p[1]).toFixed(1)).join(' ')}" fill="${c}" stroke="${c}" stroke-width="2.6" stroke-linejoin="round"/>`;}).join('')}</svg>`;
 }
-const shots={},extras=[],CORR=new Map(),NUKKI=new Map(),DFILES={}; /* NUKKI: 원본 파일 → 누끼 PNG */
+const SKIP=new Set(),shots={},extras=[],CORR=new Map(),NUKKI=new Map(),DFILES={}; /* NUKKI: 원본 파일 → 누끼 PNG */
 const viewF=f=>NUKKI.get(f)||CORR.get(f)||f,badge=f=>[CORR.has(f)?'색보정':'',NUKKI.has(f)?'누끼':''].filter(Boolean).join('·'),edited=f=>!!f&&(CORR.has(f)||NUKKI.has(f)); /* DFILES: 드라이브에서 받아 온 원본 사진 (파일ID → 파일) */ /* CORR: 원본 파일 → 색 보정한 파일 */
 const g=document.getElementById('grid'),TILES=[];
 DIRS.forEach(([nm,yw,el],i)=>{
  const t=document.createElement('div');t.className='tile';
- t.innerHTML=`<span class="no">${i+1}</span><span class="ck">✓</span>${chairSVG(yw,el)}<div class="pic"></div><div class="nm">${nm}</div><div class="retake" hidden>눌러서 크게 보기</div><input type="file" accept="image/*" capture="environment">`;
+ t.innerHTML=`<span class="no">${i+1}</span><span class="ck">✓</span>${chairSVG(yw,el)}<div class="pic"></div><div class="nm">${nm}</div><div class="retake" hidden>눌러서 크게 보기</div><button type="button" class="sv" hidden>☑ 저장</button><input type="file" accept="image/*" capture="environment">`;
+ const sv=t.querySelector('.sv');sv.addEventListener('click',e=>{e.stopPropagation();SKIP.has(nm)?SKIP.delete(nm):SKIP.add(nm);drawSel();upd();});
  const inp=t.querySelector('input');
- t.addEventListener('click',e=>{if(e.target===inp)return;if(t.dataset.big)openView(t.dataset.big,t.dataset.small,nm,()=>inp.click());else inp.click();});
+ t.addEventListener('click',e=>{if(e.target===inp||e.target===sv)return;if(t.dataset.big)openView(t.dataset.big,t.dataset.small,nm,()=>inp.click());else inp.click();});
  inp.addEventListener('change',()=>{const f=inp.files[0];if(!f)return;
-  if(shots[nm]){CORR.delete(shots[nm]);NUKKI.delete(shots[nm]);}shots[nm]=f;const u=URL.createObjectURL(f);t.dataset.big=u;t.dataset.small=u;const o0=t.querySelector('.src');if(o0)o0.remove();
+  if(shots[nm]){CORR.delete(shots[nm]);NUKKI.delete(shots[nm]);}shots[nm]=f;SKIP.delete(nm);const u=URL.createObjectURL(f);t.dataset.big=u;t.dataset.small=u;const o0=t.querySelector('.src');if(o0)o0.remove();
   t.querySelector('.pic').innerHTML=`<img class="th" src="${u}" alt="">`;
-  t.querySelector('.retake').hidden=false;t.classList.add('done');const cb0=t.querySelector('.cb');if(cb0)cb0.remove();upd();});
+  t.querySelector('.retake').hidden=false;t.classList.add('done');const cb0=t.querySelector('.cb');if(cb0)cb0.remove();drawSel();upd();});
  TILES.push(t);g.appendChild(t);
 });
+/* 2번에서 새로 찍은 사진 중 저장할 것만 고르기 (SKIP = 저장 안 할 방향) */
+function drawSel(){let any=false;DIRS.forEach(([nm],i)=>{const t=TILES[i],b=t.querySelector('.sv'),has=!!shots[nm];any=any||has;b.hidden=!has;
+  const off=has&&SKIP.has(nm);t.classList.toggle('skip',off);b.textContent=off?'☐ 저장 안 함':'☑ 저장';});$('selRow').hidden=!any;}
+document.getElementById('selAll').onclick=()=>{SKIP.clear();drawSel();upd();};
+document.getElementById('selNone').onclick=()=>{Object.keys(shots).forEach(k=>SKIP.add(k));drawSel();upd();};
 const exIn=document.getElementById('exIn');
 document.getElementById('exBtn').onclick=()=>exIn.click();
 exIn.onchange=()=>{const f=exIn.files[0];if(!f)return;extras.push(f);
@@ -329,10 +343,11 @@ function upd(withMsg=true){
  document.getElementById('cnt').textContent=n+' / '+DIRS.length;
  document.getElementById('barI').style.width=(n/DIRS.length*100)+'%';
  const name=document.getElementById('pname').value.trim();
- const nd=driveCorr().length+driveNk().length,ok=!!TARGET&&(n+extras.length+nd)>0;
+ const sv=Object.keys(shots).filter(k=>!SKIP.has(k)),ns=sv.length,nsk=n-ns;
+ const nd=driveCorr().length+driveNk().length,ok=!!TARGET&&(ns+extras.length+nd)>0;
  document.getElementById('save').disabled=!ok;
- const nc=[...Object.values(shots),...extras].reduce((a,f)=>a+(CORR.has(f)?1:0)+(NUKKI.has(f)?1:0),0)+nd;
- if(withMsg)document.getElementById('msg').textContent=ok?`저장 예정: 📍 "${TARGET.path[TARGET.path.length-1]}" 폴더에 ${[n+extras.length?(n+extras.length)+'장':'',nc?`색보정·누끼 ${nc}장`:''].filter(Boolean).join(' + ')}`:(!TARGET?'아래 7번에서 사진을 넣을 폴더를 열어 주세요.':'사진을 찍으면 버튼이 켜집니다.');
+ const nc=[...sv.map(k=>shots[k]),...extras].reduce((a,f)=>a+(CORR.has(f)?1:0)+(NUKKI.has(f)?1:0),0)+nd;
+ if(withMsg)document.getElementById('msg').textContent=ok?`저장 예정: 📍 "${TARGET.path[TARGET.path.length-1]}" 폴더에 ${[ns+extras.length?(ns+extras.length)+'장':'',nc?`색보정·누끼 ${nc}장`:''].filter(Boolean).join(' + ')}${nsk?` (저장 안 함 ${nsk}장 제외)`:''}`:(!TARGET?'아래 7번에서 사진을 넣을 폴더를 열어 주세요.':(nsk?'저장할 사진을 1장 이상 골라 주세요 (☑ 저장).':'사진을 찍으면 버튼이 켜집니다.'));
 }
 /* ───── 드라이브 연결 ───── */
 const API='https://script.google.com/macros/s/AKfycbw0B7IE5YgaeIwfQCaujgTesCTomZYTL1pzyICR5nSepAjvcJuTVlpVdvn6XNZfT_3B/exec';
@@ -386,7 +401,7 @@ $('save').onclick=async()=>{
  const product=$('pname').value.trim();
  if(!PIN){$('pinBox').hidden=false;$('pin').focus();$('msg').textContent='사용 비밀번호를 먼저 넣어 주세요.';return;}
  const jobs=[];
- DIRS.forEach(([nm],i)=>{if(shots[nm]){jobs.push({f:shots[nm],name:fileName(i),nm});if(CORR.has(shots[nm]))jobs.push({f:CORR.get(shots[nm]),name:fileName(i)+'_색보정',nm});if(NUKKI.has(shots[nm]))jobs.push({f:NUKKI.get(shots[nm]),name:fileName(i)+'_누끼',nm});}});
+ DIRS.forEach(([nm],i)=>{if(shots[nm]&&!SKIP.has(nm)){jobs.push({f:shots[nm],name:fileName(i),nm});if(CORR.has(shots[nm]))jobs.push({f:CORR.get(shots[nm]),name:fileName(i)+'_색보정',nm});if(NUKKI.has(shots[nm]))jobs.push({f:NUKKI.get(shots[nm]),name:fileName(i)+'_누끼',nm});}});
  driveNk().forEach(o=>jobs.push({f:NUKKI.get(DFILES[o.id]),name:o.name.replace(/\.[^.]+$/,'')+'_누끼',dn:o.id}));
  driveCorr().forEach(o=>jobs.push({f:CORR.get(DFILES[o.id]),name:o.name.replace(/\.[^.]+$/,'')+'_색보정',dc:o.id}));
  extras.forEach((f,i)=>{jobs.push({f,name:'디테일'+(DRIVE_DETS.length+i+1),ex:true});if(CORR.has(f))jobs.push({f:CORR.get(f),name:'디테일'+(DRIVE_DETS.length+i+1)+'_색보정',exc:f});if(NUKKI.has(f))jobs.push({f:NUKKI.get(f),name:'디테일'+(DRIVE_DETS.length+i+1)+'_누끼',exc:f});});
@@ -646,6 +661,7 @@ $('cUndo').onclick=()=>{const all=document.querySelector('input[name=cTo]:checke
  (all?photoList():photoList().filter(o=>o.key===C.key)).forEach(o=>{if(o.f)CORR.delete(o.f);});
  C.pts=[];C.wait=null;C.sl={t:0,m:0,b:0,s:0,h:0,l:0};document.querySelectorAll('#cSl input').forEach(i=>{i.value=0;$('cV_'+i.dataset.k).textContent='0';});solve();render();refreshThumbs();$('cMsg').textContent='원래 사진으로 되돌렸습니다.';};
 function refreshThumbs(){
+ drawSel();
  DIRS.forEach(([nm],i)=>{const t=TILES[i];let f=shots[nm];
   if(!f){const df=t.dataset.fid&&DFILES[t.dataset.fid];const cb=t.querySelector('.cb');if(cb)cb.remove();
    if(!edited(df)&&String(t.dataset.big||'').startsWith('blob:')&&t.dataset.dbig!=null){t.dataset.big=t.dataset.dbig;t.dataset.small=t.dataset.dsmall;const u0=t.dataset.dsmall||t.dataset.dbig;t.querySelector('.pic').innerHTML=u0?`<img class="th" src="${u0}" alt="">`:'';}
@@ -687,9 +703,9 @@ function showState(nOk){
 const Z={items:[]};
 const ZK='camSizeCfg';
 (function(){let c={};try{c=JSON.parse(localStorage.getItem(ZK)||'{}');}catch(e){}
- $('zRef').value=c.ref||110;$('zPx').value=c.px||2000;$('zBot').value=c.bot!=null?c.bot:8;$('zShA').value=c.sha||35;$('zShV').textContent=$('zShA').value;$('zSh').checked=c.sh!==false;
+ $('zRef').value=c.ref||110;$('zPx').value=c.px||2000;$('zBot').value=c.bot!=null?c.bot:8;$('zShA').value=c.sha!=null?c.sha:35;$('zShV').textContent=$('zShA').value;
  if(c.bg==='jpg')document.querySelector('input[name=zBg][value=jpg]').checked=true;})();
-function zCfg(){const c={ref:+$('zRef').value||110,px:Math.min(4000,Math.max(500,+$('zPx').value||2000)),bot:Math.min(30,Math.max(0,+$('zBot').value||0)),sha:+$('zShA').value,sh:$('zSh').checked,bg:document.querySelector('input[name=zBg]:checked').value,H:+$('zH').value||0,W:+$('zW').value||0};
+function zCfg(){const c={ref:+$('zRef').value||110,px:Math.min(4000,Math.max(500,+$('zPx').value||2000)),bot:Math.min(30,Math.max(0,+$('zBot').value||0)),sha:+$('zShA').value,sh:+$('zShA').value>0,bg:document.querySelector('input[name=zBg]:checked').value,H:+$('zH').value||0,W:+$('zW').value||0};
  try{localStorage.setItem(ZK,JSON.stringify({ref:c.ref,px:c.px,bot:c.bot,sha:c.sha,sh:c.sh,bg:c.bg}));}catch(e){}return c;}
 /* 투명하지 않은 부분의 테두리 상자 찾기 */
 function alphaBox(cv){const w=cv.width,h=cv.height,d=cv.getContext('2d').getImageData(0,0,w,h).data;let x0=w,y0=h,x1=-1,y1=-1,clear=0;
@@ -722,10 +738,10 @@ function zRender(){const c=zCfg();
 async function zAddFiles(list){let k=0;for(const o of list){$('zMsg').textContent=`⏳ 사진 불러오는 중 ${++k} / ${list.length} : ${o.key}`;
   try{const f=o.f||await getFile(o);const it=await zLoad(o.key,viewF(f));it.on=true;const di=DIRS.findIndex(d=>d[0]===o.key);it.name=o.name?o.name.replace(/\.[^.]+$/,''):(di>=0&&o.f&&shots[o.key]===o.f?fileName(di):o.key);const j=Z.items.findIndex(x=>x.key===o.key);j>=0?Z.items[j]=it:Z.items.push(it);}catch(e){$('zMsg').textContent='❌ '+o.key+': '+e.message;}}
  $('zMsg').textContent=Z.items.length?`사진 ${Z.items.length}장. 파란 점선이 바닥선입니다.`:'';zRender();}
-$('zUse').onclick=()=>{const L=photoList();if(!L.length){toast('2번·3번에 사진이 없습니다');return;}zAddFiles(L);};
+$('zUse').onclick=()=>{const dirs=new Set(DIRS.map(d=>d[0]));const L=photoList().filter(o=>dirs.has(o.key));if(!L.length){toast('2번에 사진이 없습니다');return;}zAddFiles(L);}; /* 디테일(3번)은 빼고 방향 사진만 */
 $('zAddB').onclick=()=>$('zAdd').click();
 $('zAdd').onchange=()=>{const fs=[...$('zAdd').files];$('zAdd').value='';zAddFiles(fs.map(f=>({key:f.name.replace(/\.[^.]+$/,''),f})));};
-['zH','zW','zRef','zPx','zBot','zShA','zSh'].forEach(id=>$(id).addEventListener('input',()=>{$('zShV').textContent=$('zShA').value;zRender();}));
+['zH','zW','zRef','zPx','zBot','zShA'].forEach(id=>$(id).addEventListener('input',()=>{$('zShV').textContent=$('zShA').value;zRender();}));
 document.querySelectorAll('input[name=zBg]').forEach(r=>r.addEventListener('change',zRender));
 $('zList').addEventListener('change',e=>{const i=e.target.dataset.zon;if(i!=null){Z.items[+i].on=e.target.checked;zRender();}});
 $('zSave').onclick=async()=>{const c=zCfg();if(!TARGET){toast('7번에서 저장할 폴더를 먼저 열어 주세요');return;}
