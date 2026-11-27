@@ -125,6 +125,13 @@ input[type=text]{width:100%;font-size:20px;padding:12px;border:2px solid var(--l
 .dt .cb{position:absolute;left:6px;top:6px;font-size:11px;background:#6a3fb5;color:#fff;border-radius:6px;padding:1px 5px}
 #ced{position:fixed;inset:0;z-index:200;background:var(--bg);overflow:auto;-webkit-overflow-scrolling:touch}
 #ced[hidden],#szd[hidden]{display:none}
+details.cfold{margin-top:10px;border:2px solid var(--line);border-radius:12px;padding:4px 10px 10px;background:var(--card)}
+details.cfold>summary{list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:44px}
+details.cfold>summary::-webkit-details-marker{display:none}
+details.cfold>summary .cs{margin-top:0}
+details.cfold>summary::after{content:'▾ 접기';flex:none;font-size:14px;font-weight:700;color:var(--blue)}
+details.cfold:not([open])>summary::after{content:'▸ 펼치기'}
+details.cfold .fs{flex:1;font-size:13px;color:var(--sub);text-align:right}
 #szd{position:fixed;inset:0;z-index:200;background:var(--bg);overflow:auto;-webkit-overflow-scrolling:touch}
 #szd .in{max-width:620px;margin:0 auto;padding:12px 16px 40px}
 #szd .hd{display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:var(--bg);padding:8px 0;z-index:3}
@@ -253,17 +260,21 @@ input[type=text]{width:100%;font-size:20px;padding:12px;border:2px solid var(--l
  <div class="hd"><b>🎨 사진 색 맞추기</b><button class="x" id="cClose" type="button">닫기</button></div>
  <div class="cs">1. 고칠 사진</div>
  <div class="pk" id="cPick"></div>
- <div class="cs">2. 실물 기준</div>
+ <details class="cfold" id="cD2" open><summary><span class="cs">2. 실물 기준</span><span class="fs" id="cS2"></span></summary>
  <div class="seg" id="cMode"><button data-m="ref" type="button">실물 사진</button><button data-m="gray" type="button">회색·흰색</button><button data-m="col" type="button">색 직접</button></div>
  <div id="cModeBox"></div>
+ </details>
  <div class="cs">3. 같은 곳 누르기</div>
  <div class="ch" id="cHow"></div>
  <div id="cState" style="margin-top:8px;padding:10px 12px;border-radius:10px;font-size:16px;font-weight:700;line-height:1.5"></div>
  <div class="cv" id="cShotBox"><canvas id="cAft"></canvas><canvas id="cBef" class="top"></canvas><span class="lb" style="left:6px">고치기 전</span><span class="lb" id="cAftLb" style="right:6px">고친 후</span><div class="ln" id="cLine"></div></div>
  <div class="sl"><div><span>전후 비교 (선 위치)</span></div><input type="range" id="cSplit" min="0" max="100" value="50"></div>
+ <details class="cfold" id="cD3" open><summary><span class="cs" style="font-size:16px">실물 사진 · 누른 곳 목록</span><span class="fs" id="cS3"></span></summary>
  <div id="cRefWrap"><div class="ch">실물 사진 (같은 곳을 누르세요)</div><div class="cv" id="cRefBox"><canvas id="cRef"></canvas></div></div>
  <div id="cPts"></div>
+ </details>
  <div class="de" id="cDe" hidden></div>
+ <div class="rw"><button type="button" id="cFold">✔ 색 지정 끝 · 위 칸 접기</button></div>
  <div class="cs">4. 손으로 조금 더 맞추기</div>
  <div id="cSl"></div>
  <div class="cs">5. 적용</div>
@@ -625,6 +636,9 @@ function drawPts(){
  if(ok.length){const b=ok.reduce((s,p)=>s+dE(p.s,target(p)),0)/ok.length,a=ok.reduce((s,p)=>s+dE(fixColor(p.s),target(p)),0)/ok.length;
   $('cDe').hidden=false;$('cDe').innerHTML=`<span>평균 색 차이</span><span><s style="color:var(--warn)">${b.toFixed(1)}</s> → <b>${a.toFixed(1)}</b></span>`;}
  else $('cDe').hidden=true;
+ const mn={ref:'실물 사진',gray:'회색·흰색',col:'색 직접'}[C.mode];
+ $('cS2').textContent=mn+(C.mode==='ref'?(C.ref?' ✓':' (사진 없음)'):C.mode==='col'?' '+C.col:'');
+ $('cS3').textContent=C.pts.length?`누른 곳 ${C.pts.length}군데`:'';
  showState(ok.length);
  $('cHow').textContent=C.mode==='ref'?(C.wait?`실물 사진에서 ${C.pts.indexOf(C.wait)+1}번과 같은 곳을 누르세요.`:'위 사진에서 한 곳을 누른 뒤, 아래 실물 사진에서 같은 곳을 누르세요. 2~3곳이면 충분합니다.')
   :C.mode==='gray'?'사진 속 회색 카드나 흰 벽·회색 바닥처럼 원래 색이 없는 곳을 2~3곳 누르세요.':'아래에서 고른 색이어야 하는 곳(예: 원단, 상판)을 누르세요.';}
@@ -799,6 +813,9 @@ $('nkGo').onclick=async()=>{
  $('nkGo').disabled=false;refreshThumbs();
  $('nkMsg').textContent=(ok?`✅ ${ok}장 누끼 완료. 6번 저장 때 "_누끼.png"로 함께 올라갑니다.`:'')+(cnt?` (이번 달 포토룸 사용 ${cnt}장)`:'')+(bad.length?` ❌ 실패: ${bad.join(' / ')}`:'');
  $('nkInfo').textContent=`누끼 된 사진 ${NUKKI.size}장. 2·3번 칸에 "누끼" 표시가 붙습니다.`;};
+
+/* 색 지정이 끝나면 2번·실물 사진 칸을 접어 비교 사진과 조절 막대를 넓게 봄 */
+$('cFold').onclick=()=>{$('cD2').open=false;$('cD3').open=false;$('cShotBox').scrollIntoView({behavior:'smooth',block:'start'});};
 </script>
 </body>
 </html>
