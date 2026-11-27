@@ -761,7 +761,7 @@ $('zSave').onclick=async()=>{const c=zCfg();if(!TARGET){toast('7번에서 저장
    await call({action:'upload',product:$('pname').value.trim()||'상품',intoFolderId:TARGET.id,parentId:'',name:nm,mime,data:await b64(bl)});}
   catch(e){bad.push(it.key+': '+e.message);}}
  $('zSave').disabled=false;$('zMsg2').textContent=bad.length?'❌ 일부 실패: '+bad.join(' / '):`✅ ${L.length}장을 📍 "${TARGET.path[TARGET.path.length-1]}" 폴더에 저장했습니다.`;};
-$('szOpen').onclick=()=>{$('szd').hidden=false;document.body.style.overflow='hidden';zRender();};
+$('szOpen').onclick=()=>{Z.items=[];$('zMsg').textContent='';$('zMsg2').textContent='';$('szd').hidden=false;document.body.style.overflow='hidden';zRender();}; /* 열 때마다 3번 사진 칸은 빈 상태로 */
 $('zClose').onclick=()=>{$('szd').hidden=true;document.body.style.overflow='';};
 /* ───── 5. 누끼 따기 (포토룸) ─────
    사진을 앱스크립트를 거쳐 포토룸에 보내고(열쇠는 앱스크립트에만 있음), 배경을 지운 PNG를 받아 둡니다.
