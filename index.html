@@ -230,7 +230,7 @@ input[type=text]{width:100%;font-size:20px;padding:12px;border:2px solid var(--l
  <div class="cs">2. 공통 기준 (모든 상품 같은 값으로 두세요)</div>
  <div class="rw"><label>바탕 높이 = <input id="zRef" type="number" inputmode="decimal" style="width:70px;font-size:18px"> cm</label><label>바탕 <input id="zPx" type="number" inputmode="numeric" style="width:76px;font-size:18px"> px</label></div>
  <div class="rw"><label>바닥 여백 <input id="zBot" type="number" inputmode="numeric" style="width:60px;font-size:18px"> %</label></div>
- <div class="sl"><div><span>바닥 그림자 진하기 (0 = 그림자 없음)</span><b id="zShV">35</b></div><input type="range" id="zShA" min="0" max="80" value="35"></div>
+ <div class="sl"><div><span>바닥 그림자 진하기 (0 = 그림자 없음)</span><b id="zShV">0</b></div><input type="range" id="zShA" min="0" max="80" value="0"></div>
  <div class="rw"><label><input type="radio" name="zBg" value="png" checked> 투명 배경 (PNG)</label><label><input type="radio" name="zBg" value="jpg"> 흰 배경 (JPG)</label></div>
  <div class="ch">이 값을 상품마다 바꾸면 상품끼리 크기 비율이 틀어집니다. 한 번 정하면 그대로 두세요 (이 폰에 기억됩니다).</div>
  <div class="cs">3. 사진 (누끼 PNG)</div>
@@ -710,10 +710,11 @@ function showState(nOk){
 const Z={items:[]};
 const ZK='camSizeCfg';
 (function(){let c={};try{c=JSON.parse(localStorage.getItem(ZK)||'{}');}catch(e){}
- $('zRef').value=c.ref||110;$('zPx').value=c.px||2000;$('zBot').value=c.bot!=null?c.bot:8;$('zShA').value=c.sha!=null?c.sha:35;$('zShV').textContent=$('zShA').value;
+ $('zRef').value=c.ref||110;$('zPx').value=c.px||2000;$('zBot').value=c.bot!=null?c.bot:8;if(!c.v2){c.sha=0;} /* 그림자 기본값을 0으로 바꾼 뒤 한 번만 0으로 맞춤 */
+ $('zShA').value=c.sha!=null?c.sha:0;$('zShV').textContent=$('zShA').value;
  if(c.bg==='jpg')document.querySelector('input[name=zBg][value=jpg]').checked=true;})();
 function zCfg(){const c={ref:+$('zRef').value||110,px:Math.min(4000,Math.max(500,+$('zPx').value||2000)),bot:Math.min(30,Math.max(0,+$('zBot').value||0)),sha:+$('zShA').value,sh:+$('zShA').value>0,bg:document.querySelector('input[name=zBg]:checked').value,H:+$('zH').value||0,W:+$('zW').value||0};
- try{localStorage.setItem(ZK,JSON.stringify({ref:c.ref,px:c.px,bot:c.bot,sha:c.sha,sh:c.sh,bg:c.bg}));}catch(e){}return c;}
+ try{localStorage.setItem(ZK,JSON.stringify({v2:1,ref:c.ref,px:c.px,bot:c.bot,sha:c.sha,sh:c.sh,bg:c.bg}));}catch(e){}return c;}
 /* 투명하지 않은 부분의 테두리 상자 찾기 */
 function alphaBox(cv){const w=cv.width,h=cv.height,d=cv.getContext('2d').getImageData(0,0,w,h).data;let x0=w,y0=h,x1=-1,y1=-1,clear=0;
  for(let y=0;y<h;y++)for(let x=0;x<w;x++){const a=d[(y*w+x)*4+3];if(a<250)clear++;if(a>24){if(x<x0)x0=x;if(x>x1)x1=x;if(y<y0)y0=y;if(y>y1)y1=y;}}
