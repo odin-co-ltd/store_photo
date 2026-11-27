@@ -130,6 +130,11 @@ input[type=text]{width:100%;font-size:20px;padding:12px;border:2px solid var(--l
 #szd .hd{display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:var(--bg);padding:8px 0;z-index:3}
 #szd .hd b{font-size:22px}
 #szd .x{font-size:18px;font-weight:800;padding:10px 16px;border-radius:10px;border:2px solid var(--line);background:var(--card);color:var(--ink)}
+.zpk{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin-top:6px}
+.zpk label{display:flex;align-items:center;gap:6px;min-height:44px;padding:4px 8px;border:2px solid var(--line);border-radius:10px;background:var(--card);font-size:15px;font-weight:700}
+.zpk label.no{opacity:.4}
+.zpk input{width:22px;height:22px;flex:none}
+.zpk .sa{grid-column:1/-1;justify-content:center;color:var(--blue)}
 .zi{border:2px solid var(--line);border-radius:10px;padding:6px;background:var(--card)}
 .zi canvas{width:100%;height:auto;display:block;border-radius:6px;background:#fff repeating-conic-gradient(#e2e2e2 0 25%,#fff 0 50%) 0 0/16px 16px}
 .zi .nm{font-size:14px;font-weight:700;margin-top:4px;display:flex;justify-content:space-between;gap:4px}
@@ -234,6 +239,8 @@ input[type=text]{width:100%;font-size:20px;padding:12px;border:2px solid var(--l
  <div class="rw"><label><input type="radio" name="zBg" value="png" checked> 투명 배경 (PNG)</label><label><input type="radio" name="zBg" value="jpg"> 흰 배경 (JPG)</label></div>
  <div class="ch">이 값을 상품마다 바꾸면 상품끼리 크기 비율이 틀어집니다. 한 번 정하면 그대로 두세요 (이 폰에 기억됩니다).</div>
  <div class="cs">3. 사진 (누끼 PNG)</div>
+ <div class="ch">불러올 2번 사진을 고르세요. 처음엔 모두 선택돼 있고, 사진이 없는 칸은 흐리게 나오며 불러올 때 저절로 빠집니다.</div>
+ <div id="zPickD" class="zpk"></div>
  <div class="rw"><button type="button" id="zUse">2번 사진 불러오기</button><button type="button" id="zAddB">PNG 파일 더 넣기</button><input type="file" id="zAdd" accept="image/png,image/webp" multiple hidden></div>
  <div class="msg" id="zMsg"></div>
  <div id="zList" style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:8px"></div>
@@ -746,7 +753,12 @@ function zRender(){const c=zCfg();
 async function zAddFiles(list){let k=0;for(const o of list){$('zMsg').textContent=`⏳ 사진 불러오는 중 ${++k} / ${list.length} : ${o.key}`;
   try{const f=o.f||await getFile(o);const it=await zLoad(o.key,viewF(f));it.on=true;const di=DIRS.findIndex(d=>d[0]===o.key);it.name=o.name?o.name.replace(/\.[^.]+$/,''):(di>=0&&o.f&&shots[o.key]===o.f?fileName(di):o.key);const j=Z.items.findIndex(x=>x.key===o.key);j>=0?Z.items[j]=it:Z.items.push(it);}catch(e){$('zMsg').textContent='❌ '+o.key+': '+e.message;}}
  $('zMsg').textContent=Z.items.length?`사진 ${Z.items.length}장. 파란 점선이 바닥선입니다.`:'';zRender();}
-$('zUse').onclick=()=>{const dirs=new Set(DIRS.map(d=>d[0]));const L=photoList().filter(o=>dirs.has(o.key));if(!L.length){toast('2번에 사진이 없습니다');return;}zAddFiles(L);}; /* 디테일(3번)은 빼고 방향 사진만 */
+function zDrawPick(){const have=new Set(photoList().map(o=>o.key));
+ $('zPickD').innerHTML=DIRS.map(([nm],i)=>`<label class="${have.has(nm)?'':'no'}"><input type="checkbox" data-zd="${esc(nm)}" checked>${i+1}. ${esc(nm)}</label>`).join('')
+  +'<label class="sa"><input type="checkbox" id="zAllD" checked> 모두 선택 / 모두 해제</label>';
+ $('zAllD').onchange=e=>document.querySelectorAll('#zPickD input[data-zd]').forEach(c=>c.checked=e.target.checked);}
+$('zUse').onclick=()=>{const pick=new Set([...document.querySelectorAll('#zPickD input[data-zd]:checked')].map(c=>c.dataset.zd));
+ const L=photoList().filter(o=>pick.has(o.key));if(!L.length){toast(pick.size?'고른 칸에 사진이 없습니다':'불러올 사진을 1개 이상 골라 주세요');return;}zAddFiles(L);}; /* 디테일(3번)은 빼고, 고른 방향만 */ /* 디테일(3번)은 빼고 방향 사진만 */
 $('zAddB').onclick=()=>$('zAdd').click();
 $('zAdd').onchange=()=>{const fs=[...$('zAdd').files];$('zAdd').value='';zAddFiles(fs.map(f=>({key:f.name.replace(/\.[^.]+$/,''),f})));};
 ['zH','zW','zRef','zPx','zBot','zShA'].forEach(id=>$(id).addEventListener('input',()=>{$('zShV').textContent=$('zShA').value;zRender();}));
@@ -761,7 +773,7 @@ $('zSave').onclick=async()=>{const c=zCfg();if(!TARGET){toast('7번에서 저장
    await call({action:'upload',product:$('pname').value.trim()||'상품',intoFolderId:TARGET.id,parentId:'',name:nm,mime,data:await b64(bl)});}
   catch(e){bad.push(it.key+': '+e.message);}}
  $('zSave').disabled=false;$('zMsg2').textContent=bad.length?'❌ 일부 실패: '+bad.join(' / '):`✅ ${L.length}장을 📍 "${TARGET.path[TARGET.path.length-1]}" 폴더에 저장했습니다.`;};
-$('szOpen').onclick=()=>{Z.items=[];$('zMsg').textContent='';$('zMsg2').textContent='';$('szd').hidden=false;document.body.style.overflow='hidden';zRender();}; /* 열 때마다 3번 사진 칸은 빈 상태로 */
+$('szOpen').onclick=()=>{Z.items=[];zDrawPick();$('zMsg').textContent='';$('zMsg2').textContent='';$('szd').hidden=false;document.body.style.overflow='hidden';zRender();}; /* 열 때마다 3번 사진 칸은 빈 상태로 */
 $('zClose').onclick=()=>{$('szd').hidden=true;document.body.style.overflow='';};
 /* ───── 5. 누끼 따기 (포토룸) ─────
    사진을 앱스크립트를 거쳐 포토룸에 보내고(열쇠는 앱스크립트에만 있음), 배경을 지운 PNG를 받아 둡니다.
